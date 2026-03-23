@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
 
 from glossa import __version__
+from glossa.application.configuration import OutputFormat, config_with_overrides
 
 app = typer.Typer(
     name="glossa",
@@ -15,6 +15,20 @@ app = typer.Typer(
     no_args_is_help=False,
 )
 console = Console()
+
+
+def _codes(value: Optional[str]) -> tuple[str, ...] | None:
+    if value is None:
+        return None
+    codes = tuple(code.strip() for code in value.split(",") if code.strip())
+    return codes or None
+
+
+def _output_format(value: str) -> OutputFormat:
+    try:
+        return OutputFormat(value)
+    except ValueError as exc:
+        raise typer.BadParameter("Output format must be 'text' or 'json'.") from exc
 
 
 @app.callback(invoke_without_command=True)
@@ -47,8 +61,8 @@ def lint(
     ignore: Optional[str] = typer.Option(
         None, "--ignore", help="Comma-separated rule codes to ignore."
     ),
-    output_format: str = typer.Option(
-        "text", "--format", "-f", help="Output format: text or json."
+    output_format: Optional[str] = typer.Option(
+        None, "--format", "-f", help="Output format: text or json."
     ),
     no_color: bool = typer.Option(
         False, "--no-color", help="Disable colored output."
@@ -57,46 +71,52 @@ def lint(
     """Lint Python source files for docstring issues."""
     from glossa.adapters.bootstrap import bootstrap
     from glossa.adapters.formatters import format_json, format_text
-    from glossa.application.linting import lint_file
     from glossa.errors import GlossaError
 
     try:
-        application = bootstrap(config_path=config)
+        service = bootstrap(config_path=config)
     except GlossaError as exc:
-        console.print(f"[red]Configuration error:[/red] {exc}")
+        console.print(f"[red]Startup error:[/red] {exc}")
         raise typer.Exit(code=2)
 
-    all_diagnostics = []
-    operational_errors: list[str] = []
-
-    for source_id in application.discovery.discover(paths):
-        try:
-            source_text = application.file_port.read(source_id)
-            diagnostics = lint_file(
-                source_id=source_id,
-                source_text=source_text,
-                extraction_port=application.extractor,
-                config=application.config,
-                registry=application.registry,
-            )
-            all_diagnostics.extend(diagnostics)
-        except GlossaError as exc:
-            operational_errors.append(f"{source_id}: {exc}")
+    format_override = _output_format(output_format) if output_format is not None else None
+    result = service.lint_paths(
+        paths,
+        select=_codes(select),
+        ignore=_codes(ignore),
+        output_format=format_override,
+        color=False if no_color else None,
+    )
+    all_diagnostics = result.diagnostics
+    effective_config = config_with_overrides(
+        service.config,
+        select=_codes(select),
+        ignore=_codes(ignore),
+        output_format=format_override,
+        color=False if no_color else None,
+    )
 
     # Format output
-    if output_format == "json":
+    if effective_config.output.format is OutputFormat.JSON:
         typer.echo(format_json(all_diagnostics))
     else:
-        typer.echo(format_text(all_diagnostics, color=not no_color))
+        typer.echo(
+            format_text(
+                all_diagnostics,
+                show_source=effective_config.output.show_source,
+                color=effective_config.output.color,
+            )
+        )
 
     # Report operational errors
-    for err in operational_errors:
-        console.print(f"[yellow]Warning:[/yellow] {err}", err=True)
+    for issue in result.operational_issues:
+        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
+        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
 
     # Exit codes per design plan section 8.3
-    if operational_errors and all_diagnostics:
+    if result.operational_issues and all_diagnostics:
         raise typer.Exit(code=4)
-    elif operational_errors:
+    elif result.operational_issues:
         raise typer.Exit(code=4)
     elif all_diagnostics:
         raise typer.Exit(code=1)
@@ -118,59 +138,44 @@ def fix(
 ) -> None:
     """Apply automatic fixes to docstring issues."""
     from glossa.adapters.bootstrap import bootstrap
-    from glossa.application.fixing import apply_fixes
-    from glossa.application.linting import lint_file
     from glossa.errors import GlossaError
 
     try:
-        application = bootstrap(config_path=config)
+        service = bootstrap(config_path=config)
     except GlossaError as exc:
-        console.print(f"[red]Configuration error:[/red] {exc}")
+        console.print(f"[red]Startup error:[/red] {exc}")
         raise typer.Exit(code=2)
 
-    if not application.config.fix.enabled:
+    result = service.fix_paths(paths, dry_run=dry_run)
+
+    if not result.fix_enabled:
         console.print("[yellow]Fix mode is disabled in configuration.[/yellow]")
         raise typer.Exit(code=0)
 
-    all_diagnostics = []
-    for source_id in application.discovery.discover(paths):
-        try:
-            source_text = application.file_port.read(source_id)
-            diagnostics = lint_file(
-                source_id=source_id,
-                source_text=source_text,
-                extraction_port=application.extractor,
-                config=application.config,
-                registry=application.registry,
-            )
-            all_diagnostics.extend(diagnostics)
-        except GlossaError:
-            pass
+    for issue in result.operational_issues:
+        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
+        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
 
-    fixable = tuple(d for d in all_diagnostics if d.fix is not None)
+    fixable = result.fixable_diagnostics
     if not fixable:
         console.print("No fixable issues found.")
-        raise typer.Exit(code=0)
+        raise typer.Exit(code=4 if result.operational_issues else 0)
 
     if dry_run:
         console.print(f"Found {len(fixable)} fixable issue(s):")
         for d in fixable:
             console.print(f"  {d.code}: {d.message} [{d.target.source_id}]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=4 if result.operational_issues else 1)
 
-    results = apply_fixes(
-        diagnostics=tuple(all_diagnostics),
-        file_port=application.file_port,
-        config=application.config,
-    )
+    console.print(f"Applied {result.applied_count} fix(es).")
+    if result.rejected_count:
+        console.print(
+            f"[yellow]Skipped {result.rejected_count} fix(es) due to conflicts or validation failures.[/yellow]"
+        )
 
-    applied_count = sum(len(r.applied) for r in results)
-    rejected_count = sum(len(r.rejected) for r in results)
-    console.print(f"Applied {applied_count} fix(es).")
-    if rejected_count:
-        console.print(f"[yellow]Skipped {rejected_count} conflicting fix(es).[/yellow]")
-
-    raise typer.Exit(code=0 if not rejected_count else 1)
+    if result.operational_issues:
+        raise typer.Exit(code=4)
+    raise typer.Exit(code=0 if not result.rejected_count else 1)
 
 
 @app.command()
@@ -184,36 +189,26 @@ def check(
 ) -> None:
     """Check if files need fixing (non-zero exit if fixes available)."""
     from glossa.adapters.bootstrap import bootstrap
-    from glossa.application.linting import lint_file
     from glossa.errors import GlossaError
 
     try:
-        application = bootstrap(config_path=config)
+        service = bootstrap(config_path=config)
     except GlossaError as exc:
-        console.print(f"[red]Configuration error:[/red] {exc}")
+        console.print(f"[red]Startup error:[/red] {exc}")
         raise typer.Exit(code=2)
 
-    fixable_count = 0
-    for source_id in application.discovery.discover(paths):
-        try:
-            source_text = application.file_port.read(source_id)
-            diagnostics = lint_file(
-                source_id=source_id,
-                source_text=source_text,
-                extraction_port=application.extractor,
-                config=application.config,
-                registry=application.registry,
-            )
-            fixable_count += sum(1 for d in diagnostics if d.fix is not None)
-        except GlossaError:
-            pass
+    result = service.check_paths(paths)
+    for issue in result.operational_issues:
+        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
+        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
 
-    if fixable_count:
-        console.print(f"{fixable_count} issue(s) can be auto-fixed. Run `glossa fix` to apply.")
+    if result.fixable_count:
+        console.print(f"{result.fixable_count} issue(s) can be auto-fixed. Run `glossa fix` to apply.")
         raise typer.Exit(code=1)
-    else:
-        console.print("No fixable issues found.")
-        raise typer.Exit(code=0)
+    if result.operational_issues:
+        raise typer.Exit(code=4)
+    console.print("No fixable issues found.")
+    raise typer.Exit(code=0)
 
 
 @app.command()

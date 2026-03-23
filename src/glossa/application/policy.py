@@ -3,22 +3,12 @@
 from __future__ import annotations
 
 import fnmatch
-from dataclasses import dataclass
 from typing import Mapping
 
-from glossa.application.contracts import GlossaConfig, Severity
+from glossa.application.configuration import GlossaConfig
+from glossa.core.contracts import RuleOptions, RulePolicy, Severity
 
-
-# ---------------------------------------------------------------------------
-# Resolved Policy
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class ResolvedRulePolicy:
-    enabled: bool
-    severity: Severity
-    options: Mapping[str, object]
+ResolvedRulePolicy = RulePolicy
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +68,7 @@ def resolve_rule_policy(
     source_id: str,
     config: GlossaConfig,
     default_severity: Severity = Severity.WARNING,
-) -> ResolvedRulePolicy:
+) -> RulePolicy:
     """Resolve whether a rule is enabled for a given source file.
 
     Resolution order
@@ -113,10 +103,10 @@ def resolve_rule_policy(
     # Step 1: ignore list disables the rule unconditionally.
     for ignored in rules.ignore:
         if matches_pattern(rule_code, ignored):
-            return ResolvedRulePolicy(
+            return RulePolicy(
                 enabled=False,
                 severity=_resolve_severity(rule_code, rules.severity_overrides, default_severity),
-                options=rules.rule_options.get(rule_code, {}),
+                options=rules.rule_options.get(rule_code, RuleOptions()),
             )
 
     # Step 2: select list enables the rule if any pattern matches.
@@ -134,9 +124,9 @@ def resolve_rule_policy(
 
     # Steps 4 & 5: severity and options.
     severity = _resolve_severity(rule_code, rules.severity_overrides, default_severity)
-    options: Mapping[str, object] = rules.rule_options.get(rule_code, {})
+    options = rules.rule_options.get(rule_code, RuleOptions())
 
-    return ResolvedRulePolicy(enabled=enabled, severity=severity, options=options)
+    return RulePolicy(enabled=enabled, severity=severity, options=options)
 
 
 def _resolve_severity(

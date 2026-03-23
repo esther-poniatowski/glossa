@@ -5,7 +5,15 @@ from __future__ import annotations
 import re
 
 from glossa.domain.rules import RuleMetadata, RuleContext
-from glossa.application.contracts import Diagnostic, LintTarget, Severity, TargetKind
+from glossa.core.contracts import (
+    Diagnostic,
+    DocstringEdit,
+    EditKind,
+    FixPlan,
+    LintTarget,
+    Severity,
+    TargetKind,
+)
 from glossa.domain.models import TypedSection, TypedSectionKind, ProseSection, ProseSectionKind
 
 
@@ -53,14 +61,6 @@ class D500:
 # ---------------------------------------------------------------------------
 # D501 — Trivial dunder method docstring
 # ---------------------------------------------------------------------------
-
-_DEFAULT_TRIVIAL_DUNDER_ALLOWLIST: list[str] = [
-    "__init__",
-    "__new__",
-    "__del__",
-    "__repr__",
-    "__str__",
-]
 
 _BOILERPLATE_PHRASES: tuple[str, ...] = (
     "initialize self",
@@ -112,9 +112,7 @@ class D501:
             return ()
 
         # Respect the configured or default allowlist.
-        allowlist: list[str] = list(
-            context.policy.options.get("trivial_dunder_allowlist", _DEFAULT_TRIVIAL_DUNDER_ALLOWLIST)  # type: ignore[arg-type]
-        )
+        allowlist = context.policy.options.trivial_dunder_allowlist
         if method_name in allowlist:
             return ()
 
@@ -195,9 +193,6 @@ class D502:
 
         if not _section_only_none_entries(section):
             return ()
-
-        from glossa.application.contracts import DocstringEdit, EditKind, FixPlan
-        from glossa.domain.models import DocstringSpan
 
         fix = FixPlan(
             description="Remove redundant 'Returns' section.",

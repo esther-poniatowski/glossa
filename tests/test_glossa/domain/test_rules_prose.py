@@ -7,6 +7,7 @@ from glossa.application.contracts import (
     ExceptionFact,
     LintTarget,
     ModuleSymbolFact,
+    RuleOptions,
     Severity,
     SignatureFacts,
     SourceRef,
@@ -72,7 +73,7 @@ def make_context(options: dict | None = None) -> RuleContext:
         policy=ResolvedRulePolicy(
             enabled=True,
             severity=Severity.WARNING,
-            options=options or {},
+            options=RuleOptions(**(options or {})),
         )
     )
 

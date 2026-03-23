@@ -6,8 +6,8 @@ All functions are pure and operate only on in-memory value objects.
 
 from __future__ import annotations
 
+from glossa.core.contracts import DocstringEdit, EditKind, FixPlan
 from glossa.domain.models import DocstringSpan
-from glossa.application.contracts import DocstringEdit, EditKind, FixPlan
 
 
 # ---------------------------------------------------------------------------
@@ -115,10 +115,6 @@ def apply_edits_to_body(body: str, edits: tuple[DocstringEdit, ...]) -> str:
     INSERT (``span`` is not ``None``)
         Insert ``edit.text`` at ``span.start_offset``; ``span.end_offset``
         must equal ``span.start_offset`` (zero-width insertion point).
-    INSERT (``span`` is ``None``)
-        Anchor-based insertion.  Not implemented in v1 — the edit text is
-        appended to the body.
-
     Parameters
     ----------
     body : str
@@ -133,15 +129,15 @@ def apply_edits_to_body(body: str, edits: tuple[DocstringEdit, ...]) -> str:
     str
         The edited docstring body.
     """
-    # Separate anchor-based inserts (span=None) from span-based edits.
-    anchor_inserts: list[DocstringEdit] = []
     span_edits: list[DocstringEdit] = []
 
     for edit in edits:
         if edit.span is None:
-            anchor_inserts.append(edit)
-        else:
-            span_edits.append(edit)
+            raise ValueError(
+                f"Unsupported anchor-based edit {edit.anchor!r}; "
+                "docstring-body application requires an explicit span."
+            )
+        span_edits.append(edit)
 
     # Apply span-based edits back-to-front to preserve earlier offsets.
     span_edits.sort(key=lambda e: e.span.start_offset, reverse=True)  # type: ignore[union-attr]
@@ -160,41 +156,4 @@ def apply_edits_to_body(body: str, edits: tuple[DocstringEdit, ...]) -> str:
             # Zero-width span: insert at start_offset without removing anything.
             result = result[:start] + edit.text + result[start:]
 
-    # v1: anchor-based inserts are simply appended in order.
-    for edit in anchor_inserts:
-        result = result + edit.text
-
     return result
-
-
-# ---------------------------------------------------------------------------
-# Fix validation
-# ---------------------------------------------------------------------------
-
-
-def validate_fix_result(
-    original_body: str,
-    edited_body: str,
-    affected_rules: tuple[str, ...],
-) -> tuple[bool, tuple[str, ...]]:
-    """Validate the result of applying a fix by re-running affected rules.
-
-    Parameters
-    ----------
-    original_body : str
-        The docstring body before edits were applied.
-    edited_body : str
-        The docstring body after edits were applied.
-    affected_rules : tuple[str, ...]
-        Rule codes that should be re-checked against the edited body.
-
-    Returns
-    -------
-    tuple[bool, tuple[str, ...]]
-        A 2-tuple of ``(is_valid, remaining_violations)`` where
-        ``remaining_violations`` holds the rule codes that still fire after
-        the fix.  In the full implementation this would reparse the edited
-        body and re-run each affected rule; the current stub always returns
-        ``(True, ())``.
-    """
-    return (True, ())

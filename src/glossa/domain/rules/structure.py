@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import re
 
-from glossa.application.contracts import Diagnostic, LintTarget, Severity, TargetKind
+from glossa.core.contracts import Diagnostic, LintTarget, Severity, TargetKind
 from glossa.domain.models import (
     InventorySection,
     ProseSection,
@@ -524,11 +524,8 @@ class D306:
             return ()
 
         # Check whether this module is an API entry point.
-        api_entry_modules: list[str] = list(
-            context.policy.options.get("api_entry_modules", [])  # type: ignore[arg-type]
-        )
         source_id = target.ref.source_id
-        for pattern in api_entry_modules:
+        for pattern in context.policy.options.api_entry_modules:
             if fnmatch.fnmatch(source_id, pattern):
                 return ()
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from glossa.domain.rules import RuleMetadata, RuleContext
-from glossa.application.contracts import (
+from glossa.core.contracts import (
     Diagnostic,
     DocstringEdit,
     EditKind,

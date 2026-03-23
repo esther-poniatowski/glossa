@@ -5,14 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
+from glossa.core.contracts import RulePolicy, Severity, TargetKind
+
 if TYPE_CHECKING:
-    from glossa.application.contracts import (
-        Diagnostic,
-        LintTarget,
-        Severity,
-        TargetKind,
-    )
-    from glossa.application.policy import ResolvedRulePolicy
+    from glossa.core.contracts import Diagnostic, LintTarget
 
 
 @dataclass(frozen=True)
@@ -26,7 +22,7 @@ class RuleMetadata:
 
 @dataclass(frozen=True)
 class RuleContext:
-    policy: ResolvedRulePolicy
+    policy: RulePolicy
     style: Literal["numpy"] = "numpy"
 
 

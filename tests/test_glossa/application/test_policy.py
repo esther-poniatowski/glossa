@@ -5,8 +5,10 @@ from __future__ import annotations
 import pytest
 
 from glossa.application.contracts import (
+    FixApplyMode,
     FixPolicy,
     GlossaConfig,
+    OutputFormat,
     OutputOptions,
     RuleSelection,
     Severity,
@@ -42,11 +44,11 @@ def base_config() -> GlossaConfig:
         ),
         fix=FixPolicy(
             enabled=False,
-            apply="never",
+            apply=FixApplyMode.NEVER,
             validate_after_apply=False,
         ),
         output=OutputOptions(
-            format="text",
+            format=OutputFormat.TEXT,
             color=False,
             show_source=True,
         ),

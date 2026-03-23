@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from glossa.domain.rules import RuleMetadata, RuleContext
-from glossa.application.contracts import Diagnostic, LintTarget, Severity, TargetKind, Visibility
+from glossa.core.contracts import Diagnostic, LintTarget, Severity, TargetKind, Visibility
 from glossa.domain.models import TypedSectionKind, InventorySectionKind, TypedSection, InventorySection
 
 
@@ -139,11 +139,11 @@ class D102:
         if target.docstring is not None:
             return ()
 
-        include_test = context.policy.options.get("include_test_functions", False)
+        include_test = context.policy.options.include_test_functions
         if not include_test and target.is_test_target:
             return ()
 
-        include_private = context.policy.options.get("include_private_helpers", False)
+        include_private = context.policy.options.include_private_helpers
         if not include_private and target.visibility is Visibility.PRIVATE:
             return ()
 
@@ -243,7 +243,7 @@ class D104:
 
         # For PROPERTY targets, check option before firing.
         if target.kind is TargetKind.PROPERTY:
-            if not context.policy.options.get("simple_property_requires_returns", True):
+            if not context.policy.options.simple_property_requires_returns:
                 return ()
 
         if not _has_typed_section(target.docstring, TypedSectionKind.RETURNS):
@@ -412,7 +412,7 @@ class D108:
         if target.docstring is None:
             return ()
 
-        threshold = int(context.policy.options.get("inventory_threshold", 2))
+        threshold = context.policy.options.inventory_threshold
 
         public_classes = sum(
             1

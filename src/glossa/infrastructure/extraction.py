@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import ast
 import re
-from typing import Iterator
 
-from glossa.application.contracts import (
+from glossa.core.contracts import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,
@@ -69,7 +68,7 @@ def _node_span(node: ast.AST) -> TextSpan:
 # Docstring extraction
 # ---------------------------------------------------------------------------
 
-_QUOTE_RE = re.compile(r'^([brBRuU]*)(?:"""|\'{3}|"|\')', re.MULTILINE)
+_QUOTE_RE = re.compile(r'^([brBRuUfF]*)(?:"""|\'{3}|"|\')', re.MULTILINE)
 
 
 def _extract_docstring(
@@ -116,9 +115,14 @@ def _extract_docstring(
     opening_line = source_lines[start_line]
     indentation = opening_line[: len(opening_line) - len(opening_line.lstrip())]
 
-    # Body span: covers the content between quotes.
-    # We use the same span as the literal for simplicity (parse-level accuracy).
-    body_span = literal_span
+    quote_len = len(matched_quote) if match else 3
+    body_span = TextSpan(
+        start=_text_pos(value.lineno, value.col_offset + len(prefix) + quote_len),
+        end=_text_pos(
+            getattr(value, "end_lineno", value.lineno),
+            getattr(value, "end_col_offset", value.col_offset) - quote_len,
+        ),
+    )
 
     return ExtractedDocstring(
         body=raw_body,
@@ -438,6 +442,26 @@ def _is_property(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return False
 
 
+def _target_suppression_lines(
+    node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+    source_lines: list[str],
+) -> tuple[str, ...]:
+    return (source_lines[node.lineno - 1],)
+
+
+def _module_suppression_lines(source_lines: list[str]) -> tuple[str, ...]:
+    lines: list[str] = []
+    for line in source_lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            lines.append(line)
+            continue
+        break
+    return tuple(lines)
+
+
 # ---------------------------------------------------------------------------
 # Main extractor
 # ---------------------------------------------------------------------------
@@ -494,6 +518,7 @@ class ASTExtractor:
                 module_symbols=module_symbols,
                 decorators=(),
                 related=RelatedTargets(),
+                suppression_lines=_module_suppression_lines(source_lines),
             )
         )
 
@@ -562,6 +587,7 @@ class ASTExtractor:
                 module_symbols=(),
                 decorators=decorators,
                 related=RelatedTargets(constructor=constructor_ref),
+                suppression_lines=_target_suppression_lines(node, source_lines),
             )
         )
 
@@ -628,6 +654,7 @@ class ASTExtractor:
             module_symbols=(),
             decorators=decorators,
             related=related,
+            suppression_lines=_target_suppression_lines(node, source_lines),
         )
 
     # ------------------------------------------------------------------

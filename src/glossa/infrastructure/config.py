@@ -2,18 +2,8 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
 
 import yaml
-
-from glossa.application.contracts import (
-    FixPolicy,
-    GlossaConfig,
-    OutputOptions,
-    RuleSelection,
-    Severity,
-    SuppressionPolicy,
-)
 from glossa.errors import ConfigurationError
 
 if sys.version_info >= (3, 11):
@@ -96,74 +86,3 @@ class ConfigLoader:
             raise ConfigurationError(
                 f"Failed to load configuration from {path}: {exc}"
             ) from exc
-
-    # ------------------------------------------------------------------
-    # Resolver
-    # ------------------------------------------------------------------
-
-    def resolve_config(self, raw: dict[str, object]) -> GlossaConfig:
-        """Convert a raw config dict into a typed ``GlossaConfig``.
-
-        Parameters
-        ----------
-        raw : dict[str, object]
-            Unvalidated configuration dictionary as returned by ``load()``.
-
-        Returns
-        -------
-        GlossaConfig
-            Fully validated, typed configuration object with defaults applied.
-        """
-        rules_raw: dict[str, Any] = raw.get("rules", {})  # type: ignore[assignment]
-        suppressions_raw: dict[str, Any] = raw.get("suppressions", {})  # type: ignore[assignment]
-        fix_raw: dict[str, Any] = raw.get("fix", {})  # type: ignore[assignment]
-        output_raw: dict[str, Any] = raw.get("output", {})  # type: ignore[assignment]
-
-        # --- RuleSelection ---
-        select_raw = rules_raw.get("select", ("D1xx", "D2xx", "D3xx", "D4xx", "D5xx"))
-        ignore_raw = rules_raw.get("ignore", ())
-        severity_overrides_raw: dict[str, str] = rules_raw.get("severity_overrides", {})
-        per_file_ignores_raw: dict[str, list[str]] = rules_raw.get("per_file_ignores", {})
-        rule_options_raw: dict[str, dict[str, object]] = rules_raw.get("rule_options", {})
-
-        severity_overrides = {
-            k: Severity(v) for k, v in severity_overrides_raw.items()
-        }
-        per_file_ignores = {
-            k: tuple(v) for k, v in per_file_ignores_raw.items()
-        }
-
-        rules = RuleSelection(
-            select=tuple(select_raw),
-            ignore=tuple(ignore_raw),
-            severity_overrides=severity_overrides,
-            per_file_ignores=per_file_ignores,
-            rule_options={k: dict(v) for k, v in rule_options_raw.items()},
-        )
-
-        # --- SuppressionPolicy ---
-        suppressions = SuppressionPolicy(
-            inline_enabled=suppressions_raw.get("inline_enabled", True),
-            directive_prefix=suppressions_raw.get("directive_prefix", "glossa: ignore="),
-        )
-
-        # --- FixPolicy ---
-        fix = FixPolicy(
-            enabled=fix_raw.get("enabled", True),
-            apply=fix_raw.get("apply", "safe"),  # type: ignore[arg-type]
-            validate_after_apply=fix_raw.get("validate_after_apply", True),
-        )
-
-        # --- OutputOptions ---
-        output = OutputOptions(
-            format=output_raw.get("format", "text"),  # type: ignore[arg-type]
-            color=output_raw.get("color", True),
-            show_source=output_raw.get("show_source", True),
-        )
-
-        return GlossaConfig(
-            rules=rules,
-            suppressions=suppressions,
-            fix=fix,
-            output=output,
-        )
