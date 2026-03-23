@@ -23,5 +23,7 @@ api/index
 :maxdepth: 1
 :caption: Architecture Decisions
 
+design-plan
+design-principles
 adr/adr-template
 ```
