@@ -1,0 +1,43 @@
+The `mypy` plugin system does not support modifying the behavior of file discovery or exclusion
+patterns**, including adding a custom `force-exclude` logic.
+
+To implement a `force-exclude` behavior similar to Black's, the only viable approach is:
+
+1. **Write a wrapper script** that:
+
+* Parses the configuration (e.g. `mypy.ini`) to extract `force_exclude` entries.
+* Parses command-line arguments passed to `mypy`.
+* Filters any explicitly provided file paths that match the forced exclusion pattern.
+* Passes the sanitized list of files to `mypy.api.run()` or invokes the `mypy` CLI subprocess.
+
+This wrapper could be used either as:
+
+* A shell alias or custom executable in place of `mypy`.
+* A VSCode configuration override (by pointing to the wrapper instead of `mypy`).
+
+2. **Set up `mypy` to always read its configuration from a central file** (e.g. via `--config-file`)
+   to centralize control and avoid conflict with VSCode's `ignorePatterns`.
+
+Example wrapper script:
+
+```python
+from pathlib import Path
+import re
+import sys
+from mypy import api
+
+FORCE_EXCLUDE = re.compile(r"""
+    (^|/)config(/|$)
+  | (^|/)conf\.py$
+  | \.ipynb$
+""", re.VERBOSE)
+
+def is_forced_excluded(path):
+    return FORCE_EXCLUDE.search(str(path))
+
+args = [arg for arg in sys.argv[1:] if not is_forced_excluded(Path(arg))]
+result = api.run(args)
+print(result[0], file=sys.stdout)
+print(result[1], file=sys.stderr)
+sys.exit(result[2])
+```

@@ -1,0 +1,42 @@
+name: Glossa Issue Form
+description: General template for new issues
+title: "New Issue: Description"
+labels: ["feat"]
+assignees: esther-poniatowski
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Related branch, files, code lines...
+      value: |
+        - [](url)
+      placeholder: |
+        - [Branch](https://github.com/username/repository/tree/branch-name)
+        - [File](https://github.com/username/repository/main/file.txt)
+        - [Code](https://github.com/user/repository/blob/main/src/main.py#L10-L20)
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Why, What
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Requirements to close the issue
+      value: |
+        - [ ]
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Related issues or PRs
+      value: |
+        -
+      placeholder: |
+        - Related to #<issue_number>
+

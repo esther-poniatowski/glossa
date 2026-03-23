@@ -1,0 +1,30 @@
+name: glossa
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  # Data manipulation and formats
+  - pyyaml                 # YAML file handling
+  - types-pyyaml           # type stubs for PyYAML
+  # Development tools
+  - black                  # code formatting
+  - mypy                   # static type checking
+  - mypy_extensions
+  - pylint                 # code linting
+  - pyright                # static type analysis
+  # Testing
+  - pytest
+  - pytest-mock
+  - pytest-cov
+  - pytest-pylint          # Pylint plugin for Pytest
+  # Documentation
+  - sphinx                 # documentation generator
+  - myst-parser            # Markdown support for Sphinx
+  - sphinx-rtd-theme       # ReadTheDocs theme
+  - sphinx-needs           # for requirements and specifications in Sphinx
+  - esbonio                # language server for Sphinx
+  # CLI
+  - typer                  # command line interface
+  - rich                   # terminal output formatting
+variables:
