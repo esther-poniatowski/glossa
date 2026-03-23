@@ -14,6 +14,13 @@ from glossa.core.contracts import (
     Severity,
     TargetKind,
 )
+from glossa.domain.models import (
+    InventorySection,
+    ProseSection,
+    SeeAlsoSection,
+    TypedSection,
+    UnknownSection,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -282,14 +289,17 @@ def _collect_all_text(target: LintTarget) -> str:
     parts.extend(parsed.extended_description_lines)
 
     for section in parsed.sections:
-        # ProseSection and UnknownSection have body_lines.
-        if hasattr(section, "body_lines"):
-            parts.extend(section.body_lines)
-        # TypedSection has entries with description_lines.
-        if hasattr(section, "entries"):
+        if isinstance(section, TypedSection):
             for entry in section.entries:
-                if hasattr(entry, "description_lines"):
-                    parts.extend(entry.description_lines)
+                parts.extend(entry.description_lines)
+        elif isinstance(section, (ProseSection, UnknownSection)):
+            parts.extend(section.body_lines)
+        elif isinstance(section, InventorySection):
+            for item in section.items:
+                parts.extend(item.description_lines)
+        elif isinstance(section, SeeAlsoSection):
+            for item in section.items:
+                parts.extend(item.description_lines)
 
     return "\n".join(parts)
 

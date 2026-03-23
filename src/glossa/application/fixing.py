@@ -10,6 +10,7 @@ from glossa.application.linting import AnalyzedFile, analyze_file
 from glossa.application.protocols import ExtractionPort, FilePort
 from glossa.application.registry import RuleRegistry
 from glossa.core.contracts import EditKind, FixPlan, SourceRef
+from glossa.domain.fixes import intervals_overlap
 from glossa.errors import GlossaError
 
 
@@ -227,7 +228,7 @@ def _plans_overlap(a: _ResolvedFixPlan, b: _ResolvedFixPlan) -> bool:
 
 
 def _edits_overlap(a: _SourceEdit, b: _SourceEdit) -> bool:
-    return a.start_offset < b.end_offset and b.start_offset < a.end_offset
+    return intervals_overlap(a.start_offset, a.end_offset, b.start_offset, b.end_offset)
 
 
 def _apply_source_edits(source_text: str, edits: tuple[_SourceEdit, ...]) -> str:

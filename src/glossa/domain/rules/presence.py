@@ -39,6 +39,27 @@ def _documentable_params(target: LintTarget) -> list[str]:
     ]
 
 
+def _missing_docstring_check(
+    target: LintTarget,
+    context: RuleContext,
+    kind: TargetKind,
+    code: str,
+    message: str,
+) -> tuple[Diagnostic, ...]:
+    """Shared logic for D100/D101: fire if a public target of *kind* has no docstring."""
+    if target.kind is kind and target.visibility is Visibility.PUBLIC and target.docstring is None:
+        return (
+            Diagnostic(
+                code=code,
+                message=message,
+                severity=context.policy.severity,
+                target=target.ref,
+                span=None,
+            ),
+        )
+    return ()
+
+
 # ---------------------------------------------------------------------------
 # D100 — Missing public module docstring
 # ---------------------------------------------------------------------------
@@ -60,21 +81,9 @@ class D100:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if (
-            target.kind is TargetKind.MODULE
-            and target.visibility is Visibility.PUBLIC
-            and target.docstring is None
-        ):
-            return (
-                Diagnostic(
-                    code="D100",
-                    message="Missing docstring in public module.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+        return _missing_docstring_check(
+            target, context, TargetKind.MODULE, "D100", "Missing docstring in public module."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -98,21 +107,9 @@ class D101:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if (
-            target.kind is TargetKind.CLASS
-            and target.visibility is Visibility.PUBLIC
-            and target.docstring is None
-        ):
-            return (
-                Diagnostic(
-                    code="D101",
-                    message="Missing docstring in public class.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+        return _missing_docstring_check(
+            target, context, TargetKind.CLASS, "D101", "Missing docstring in public class."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -139,11 +136,11 @@ class D102:
         if target.docstring is not None:
             return ()
 
-        include_test = context.policy.options.include_test_functions
+        include_test = context.policy.options.get("include_test_functions", False)
         if not include_test and target.is_test_target:
             return ()
 
-        include_private = context.policy.options.include_private_helpers
+        include_private = context.policy.options.get("include_private_helpers", False)
         if not include_private and target.visibility is Visibility.PRIVATE:
             return ()
 
@@ -243,7 +240,7 @@ class D104:
 
         # For PROPERTY targets, check option before firing.
         if target.kind is TargetKind.PROPERTY:
-            if not context.policy.options.simple_property_requires_returns:
+            if not context.policy.options.get("simple_property_requires_returns", True):
                 return ()
 
         if not _has_typed_section(target.docstring, TypedSectionKind.RETURNS):
@@ -412,7 +409,7 @@ class D108:
         if target.docstring is None:
             return ()
 
-        threshold = context.policy.options.inventory_threshold
+        threshold = context.policy.options.get("inventory_threshold", 2)
 
         public_classes = sum(
             1

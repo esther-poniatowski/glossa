@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import re
+from typing import Iterator
 
 from glossa.core.contracts import (
     AttributeFact,
@@ -225,22 +226,28 @@ def _extract_signature(
     )
 
 
-def _has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    for child in ast.walk(node):
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child is not node:
-            continue  # Don't descend into nested functions
-        if isinstance(child, ast.Return) and child.value is not None:
-            return True
-    return False
-
-
-def _has_yield(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def _walk_body_nodes(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> Iterator[ast.AST]:
+    """Yield AST nodes from *node*, skipping nested function/class bodies."""
     for child in ast.walk(node):
         if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child is not node:
             continue
-        if isinstance(child, (ast.Yield, ast.YieldFrom)):
-            return True
-    return False
+        yield child
+
+
+def _has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(child, ast.Return) and child.value is not None
+        for child in _walk_body_nodes(node)
+    )
+
+
+def _has_yield(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(
+        isinstance(child, (ast.Yield, ast.YieldFrom))
+        for child in _walk_body_nodes(node)
+    )
 
 
 # ---------------------------------------------------------------------------

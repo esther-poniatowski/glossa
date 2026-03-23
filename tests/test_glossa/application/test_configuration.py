@@ -39,5 +39,5 @@ def test_resolve_config_builds_typed_values() -> None:
 
     assert config.output.format is OutputFormat.JSON
     assert config.fix.apply is FixApplyMode.UNSAFE
-    assert config.rules.rule_options["D102"].include_test_functions is True
-    assert config.rules.rule_options["D306"].api_entry_modules == ("src/**",)
+    assert config.rules.rule_options["D102"]["include_test_functions"] is True
+    assert config.rules.rule_options["D306"]["api_entry_modules"] == ("src/**",)

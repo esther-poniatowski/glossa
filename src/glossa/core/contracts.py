@@ -160,27 +160,10 @@ class Severity(Enum):
 
 
 @dataclass(frozen=True)
-class RuleOptions:
-    include_test_functions: bool = False
-    include_private_helpers: bool = False
-    simple_property_requires_returns: bool = True
-    inventory_threshold: int = 2
-    trivial_dunder_allowlist: tuple[str, ...] = (
-        "__init__",
-        "__new__",
-        "__del__",
-        "__repr__",
-        "__str__",
-    )
-    api_entry_modules: tuple[str, ...] = ()
-    extra: Mapping[str, object] = MappingProxyType({})
-
-
-@dataclass(frozen=True)
 class RulePolicy:
     enabled: bool
     severity: Severity
-    options: RuleOptions
+    options: Mapping[str, object] = MappingProxyType({})
 
 
 class EditKind(Enum):

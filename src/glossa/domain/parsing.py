@@ -148,29 +148,32 @@ def _dedent_body(lines: list[str], indent: int) -> tuple[str, ...]:
 
 
 # ---------------------------------------------------------------------------
-# Section body parsers
+# Indent-based block grouping (shared by all section body parsers)
 # ---------------------------------------------------------------------------
 
 
-def _parse_typed_entries(
+def _group_indented_blocks(
     body_lines: list[str],
-    kind: TypedSectionKind,
-    all_lines: list[str],
-    body_start_idx: int,
-) -> tuple[TypedEntry, ...]:
-    entries: list[TypedEntry] = []
-    if not body_lines:
-        return ()
+) -> list[tuple[int, list[str]]]:
+    """Group *body_lines* into blocks using indent-level detection.
 
-    # Determine base indent from first non-blank body line
+    Each block starts at the base indent level (determined from the first
+    non-blank line) and includes all subsequent lines that are either blank
+    or indented beyond the base level.
+
+    Returns a list of ``(start_index, lines)`` tuples where *start_index*
+    is relative to *body_lines*.
+    """
+    if not body_lines:
+        return []
+
     base_indent = 0
     for line in body_lines:
         if line.strip():
             base_indent = len(line) - len(line.lstrip())
             break
 
-    # Group lines into entry blocks
-    entry_blocks: list[tuple[int, list[str]]] = []
+    blocks: list[tuple[int, list[str]]] = []
     current_start: int | None = None
     current_lines: list[str] = []
 
@@ -184,7 +187,7 @@ def _parse_typed_entries(
         line_indent = len(line) - len(line.lstrip())
         if line_indent == base_indent:
             if current_lines:
-                entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
+                blocks.append((current_start, current_lines))  # type: ignore[arg-type]
             current_start = i
             current_lines = [stripped]
         elif current_lines:
@@ -194,16 +197,39 @@ def _parse_typed_entries(
             current_lines = [stripped]
 
     if current_lines:
-        entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
+        blocks.append((current_start, current_lines))  # type: ignore[arg-type]
+
+    return blocks
+
+
+def _trim_trailing_blanks(lines: tuple[str, ...]) -> tuple[str, ...]:
+    """Strip trailing empty strings from a tuple of lines."""
+    while lines and not lines[-1].strip():
+        lines = lines[:-1]
+    return lines
+
+
+# ---------------------------------------------------------------------------
+# Section body parsers
+# ---------------------------------------------------------------------------
+
+
+def _parse_typed_entries(
+    body_lines: list[str],
+    kind: TypedSectionKind,
+    all_lines: list[str],
+    body_start_idx: int,
+) -> tuple[TypedEntry, ...]:
+    blocks = _group_indented_blocks(body_lines)
+    if not blocks:
+        return ()
 
     uses_names = kind not in (TypedSectionKind.RETURNS, TypedSectionKind.YIELDS)
+    entries: list[TypedEntry] = []
 
-    for block_start, block_lines in entry_blocks:
+    for block_start, block_lines in blocks:
         header = block_lines[0].strip()
-        desc_lines = tuple(block_lines[1:]) if len(block_lines) > 1 else ()
-        # Strip trailing empty lines from description
-        while desc_lines and not desc_lines[-1].strip():
-            desc_lines = desc_lines[:-1]
+        desc_lines = _trim_trailing_blanks(tuple(block_lines[1:]))
 
         name: str | None = None
         type_text: str | None = None
@@ -253,43 +279,14 @@ def _parse_inventory_items(
     all_lines: list[str],
     body_start_idx: int,
 ) -> tuple[InventoryItem, ...]:
-    items: list[InventoryItem] = []
-    if not body_lines:
+    blocks = _group_indented_blocks(body_lines)
+    if not blocks:
         return ()
 
-    base_indent = 0
-    for line in body_lines:
-        if line.strip():
-            base_indent = len(line) - len(line.lstrip())
-            break
-
-    entry_blocks: list[tuple[int, list[str]]] = []
-    current_start: int | None = None
-    current_lines: list[str] = []
-
-    for i, line in enumerate(body_lines):
-        stripped = line.rstrip()
-        if not stripped:
-            if current_lines:
-                current_lines.append(stripped)
-            continue
-        line_indent = len(line) - len(line.lstrip())
-        if line_indent == base_indent:
-            if current_lines:
-                entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
-            current_start = i
-            current_lines = [stripped]
-        elif current_lines:
-            current_lines.append(stripped)
-
-    if current_lines:
-        entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
-
-    for block_start, block_lines in entry_blocks:
+    items: list[InventoryItem] = []
+    for block_start, block_lines in blocks:
         name = block_lines[0].strip()
-        desc_lines = tuple(block_lines[1:]) if len(block_lines) > 1 else ()
-        while desc_lines and not desc_lines[-1].strip():
-            desc_lines = desc_lines[:-1]
+        desc_lines = _trim_trailing_blanks(tuple(block_lines[1:]))
 
         abs_start = body_start_idx + block_start
         abs_end = abs_start + len(block_lines)
@@ -307,49 +304,20 @@ def _parse_see_also_items(
     all_lines: list[str],
     body_start_idx: int,
 ) -> tuple[SeeAlsoItem, ...]:
-    items: list[SeeAlsoItem] = []
-    if not body_lines:
+    blocks = _group_indented_blocks(body_lines)
+    if not blocks:
         return ()
 
-    base_indent = 0
-    for line in body_lines:
-        if line.strip():
-            base_indent = len(line) - len(line.lstrip())
-            break
-
-    entry_blocks: list[tuple[int, list[str]]] = []
-    current_start: int | None = None
-    current_lines: list[str] = []
-
-    for i, line in enumerate(body_lines):
-        stripped = line.rstrip()
-        if not stripped:
-            if current_lines:
-                current_lines.append(stripped)
-            continue
-        line_indent = len(line) - len(line.lstrip())
-        if line_indent == base_indent:
-            if current_lines:
-                entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
-            current_start = i
-            current_lines = [stripped]
-        elif current_lines:
-            current_lines.append(stripped)
-
-    if current_lines:
-        entry_blocks.append((current_start, current_lines))  # type: ignore[arg-type]
-
-    for block_start, block_lines in entry_blocks:
+    items: list[SeeAlsoItem] = []
+    for block_start, block_lines in blocks:
         header = block_lines[0].strip()
-        # See Also entries can have ``name : description`` on one line
         if " : " in header:
             name, _, desc = header.partition(" : ")
             desc_lines = (desc.strip(),) + tuple(block_lines[1:])
         else:
             name = header
             desc_lines = tuple(block_lines[1:]) if len(block_lines) > 1 else ()
-        while desc_lines and not desc_lines[-1].strip():
-            desc_lines = desc_lines[:-1]
+        desc_lines = _trim_trailing_blanks(desc_lines)
 
         abs_start = body_start_idx + block_start
         abs_end = abs_start + len(block_lines)

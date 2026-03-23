@@ -112,7 +112,7 @@ class D501:
             return ()
 
         # Respect the configured or default allowlist.
-        allowlist = context.policy.options.trivial_dunder_allowlist
+        allowlist = context.policy.options.get("trivial_dunder_allowlist", ())
         if method_name in allowlist:
             return ()
 

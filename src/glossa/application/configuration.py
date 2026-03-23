@@ -7,7 +7,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Mapping, Sequence
 
-from glossa.core.contracts import RuleOptions, Severity
+from glossa.core.contracts import Severity
 from glossa.errors import ConfigurationError
 
 DEFAULT_RULE_SELECT = ("D1xx", "D2xx", "D3xx", "D4xx", "D5xx")
@@ -18,6 +18,27 @@ DEFAULT_TRIVIAL_DUNDER_ALLOWLIST = (
     "__repr__",
     "__str__",
 )
+
+# Default option values per rule code.  resolve_rule_options merges user
+# config on top of these defaults so that rules always see a complete set.
+_RULE_OPTION_DEFAULTS: dict[str, dict[str, object]] = {
+    "D102": {
+        "include_test_functions": False,
+        "include_private_helpers": False,
+    },
+    "D104": {
+        "simple_property_requires_returns": True,
+    },
+    "D108": {
+        "inventory_threshold": 2,
+    },
+    "D306": {
+        "api_entry_modules": (),
+    },
+    "D501": {
+        "trivial_dunder_allowlist": DEFAULT_TRIVIAL_DUNDER_ALLOWLIST,
+    },
+}
 
 class OutputFormat(Enum):
     TEXT = "text"
@@ -36,7 +57,7 @@ class RuleSelection:
     ignore: tuple[str, ...]
     severity_overrides: Mapping[str, Severity]
     per_file_ignores: Mapping[str, tuple[str, ...]]
-    rule_options: Mapping[str, RuleOptions]
+    rule_options: Mapping[str, Mapping[str, object]]
 
 
 @dataclass(frozen=True)
@@ -102,7 +123,9 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
         ),
         rule_options=_freeze_mapping(
             {
-                code: _resolve_rule_options(code, _mapping(value, f"rules.rule_options.{code}"))
+                code: _freeze_mapping(
+                    _resolve_rule_options(code, _mapping(value, f"rules.rule_options.{code}"))
+                )
                 for code, value in rule_options_raw.items()
             }
         ),
@@ -178,8 +201,14 @@ def config_with_overrides(
     return replace(config, rules=rules, output=output)
 
 
-def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> RuleOptions:
-    validators = {
+def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> dict[str, object]:
+    """Validate and merge user-supplied options for *rule_code*.
+
+    Returns a plain dict with defaults applied for any keys the user did not
+    set.  Unknown keys for built-in rules raise ``ConfigurationError``;
+    unknown keys for plugin rules are passed through.
+    """
+    validators: dict[str, dict[str, object]] = {
         "D102": {
             "include_test_functions": lambda v: _bool(v, "include_test_functions"),
             "include_private_helpers": lambda v: _bool(v, "include_private_helpers"),
@@ -200,35 +229,25 @@ def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> RuleOpti
                 v, "trivial_dunder_allowlist"
             ),
         },
-    }.get(rule_code, {})
+    }
 
-    known_values: dict[str, object] = {}
-    extra_values: dict[str, object] = {}
+    rule_validators = validators.get(rule_code, {})
+    defaults = dict(_RULE_OPTION_DEFAULTS.get(rule_code, {}))
+    result: dict[str, object] = dict(defaults)
 
     for key, value in raw.items():
-        validator = validators.get(key)
+        validator = rule_validators.get(key)
         if validator is None:
-            if validators:
+            if rule_validators:
                 raise ConfigurationError(
                     f"Unknown option {key!r} for built-in rule {rule_code!r}"
                 )
-            extra_values[key] = value
+            # Plugin rule — pass through unvalidated.
+            result[key] = value
             continue
-        known_values[key] = validator(value)
+        result[key] = validator(value)  # type: ignore[operator]
 
-    return RuleOptions(
-        include_test_functions=known_values.get("include_test_functions", False),
-        include_private_helpers=known_values.get("include_private_helpers", False),
-        simple_property_requires_returns=known_values.get(
-            "simple_property_requires_returns", True
-        ),
-        inventory_threshold=known_values.get("inventory_threshold", 2),
-        trivial_dunder_allowlist=known_values.get(
-            "trivial_dunder_allowlist", DEFAULT_TRIVIAL_DUNDER_ALLOWLIST
-        ),
-        api_entry_modules=known_values.get("api_entry_modules", ()),
-        extra=_freeze_mapping(extra_values),
-    )
+    return result
 
 
 def _mapping(value: object, path: str) -> Mapping[str, object]:

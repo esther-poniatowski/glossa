@@ -5,8 +5,10 @@ from __future__ import annotations
 import fnmatch
 from typing import Mapping
 
-from glossa.application.configuration import GlossaConfig
-from glossa.core.contracts import RuleOptions, RulePolicy, Severity
+from types import MappingProxyType
+
+from glossa.application.configuration import GlossaConfig, _RULE_OPTION_DEFAULTS
+from glossa.core.contracts import RulePolicy, Severity
 
 ResolvedRulePolicy = RulePolicy
 
@@ -99,6 +101,7 @@ def resolve_rule_policy(
         The fully-resolved policy for the rule/file combination.
     """
     rules = config.rules
+    options = _resolve_options(rule_code, rules)
 
     # Step 1: ignore list disables the rule unconditionally.
     for ignored in rules.ignore:
@@ -106,7 +109,7 @@ def resolve_rule_policy(
             return RulePolicy(
                 enabled=False,
                 severity=_resolve_severity(rule_code, rules.severity_overrides, default_severity),
-                options=rules.rule_options.get(rule_code, RuleOptions()),
+                options=options,
             )
 
     # Step 2: select list enables the rule if any pattern matches.
@@ -122,9 +125,8 @@ def resolve_rule_policy(
 
     enabled = selected and not per_file_disabled
 
-    # Steps 4 & 5: severity and options.
+    # Step 4: severity.
     severity = _resolve_severity(rule_code, rules.severity_overrides, default_severity)
-    options = rules.rule_options.get(rule_code, RuleOptions())
 
     return RulePolicy(enabled=enabled, severity=severity, options=options)
 
@@ -136,6 +138,17 @@ def _resolve_severity(
 ) -> Severity:
     """Return the effective severity for a rule code."""
     return severity_overrides.get(rule_code, default_severity)
+
+
+def _resolve_options(
+    rule_code: str,
+    rules: object,
+) -> Mapping[str, object]:
+    """Merge defaults with user-supplied options for *rule_code*."""
+    defaults = dict(_RULE_OPTION_DEFAULTS.get(rule_code, {}))
+    user = rules.rule_options.get(rule_code, {})  # type: ignore[union-attr]
+    merged = {**defaults, **user}
+    return MappingProxyType(merged)
 
 
 # ---------------------------------------------------------------------------

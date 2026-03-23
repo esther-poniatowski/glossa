@@ -525,7 +525,7 @@ class D306:
 
         # Check whether this module is an API entry point.
         source_id = target.ref.source_id
-        for pattern in context.policy.options.api_entry_modules:
+        for pattern in context.policy.options.get("api_entry_modules", ()):
             if fnmatch.fnmatch(source_id, pattern):
                 return ()
 

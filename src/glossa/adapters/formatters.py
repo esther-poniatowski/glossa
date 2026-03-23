@@ -4,6 +4,8 @@ import json
 from typing import Sequence
 
 from glossa.application.contracts import Diagnostic
+from glossa.core.contracts import TextSpan
+from glossa.domain.models import DocstringSpan
 
 
 def format_text(
@@ -20,17 +22,12 @@ def format_text(
         source_id = diag.target.source_id
         symbol = ".".join(diag.target.symbol_path) if diag.target.symbol_path else ""
 
-        # Location info
         location = source_id
-        if diag.span is not None:
-            # TextSpan has start.line; DocstringSpan has start_offset
-            if hasattr(diag.span, "start") and hasattr(diag.span.start, "line"):
-                location += f":{diag.span.start.line}:{diag.span.start.column}"
+        if isinstance(diag.span, TextSpan):
+            location += f":{diag.span.start.line}:{diag.span.start.column}"
 
-        # Severity prefix
         sev = diag.severity.value.upper()
 
-        # Build line
         line = f"{location}: {sev} {diag.code} {diag.message}"
         if show_source and symbol:
             line += f" [{symbol}]"
@@ -54,19 +51,18 @@ def format_json(diagnostics: Sequence[Diagnostic]) -> str:
             "source_id": diag.target.source_id,
             "symbol_path": list(diag.target.symbol_path),
         }
-        if diag.span is not None:
-            if hasattr(diag.span, "start") and hasattr(diag.span.start, "line"):
-                item["location"] = {
-                    "start_line": diag.span.start.line,
-                    "start_column": diag.span.start.column,
-                    "end_line": diag.span.end.line,
-                    "end_column": diag.span.end.column,
-                }
-            else:
-                item["location"] = {
-                    "start_offset": diag.span.start_offset,
-                    "end_offset": diag.span.end_offset,
-                }
+        if isinstance(diag.span, TextSpan):
+            item["location"] = {
+                "start_line": diag.span.start.line,
+                "start_column": diag.span.start.column,
+                "end_line": diag.span.end.line,
+                "end_column": diag.span.end.column,
+            }
+        elif isinstance(diag.span, DocstringSpan):
+            item["location"] = {
+                "start_offset": diag.span.start_offset,
+                "end_offset": diag.span.end_offset,
+            }
         item["fixable"] = diag.fix is not None
         items.append(item)
 
