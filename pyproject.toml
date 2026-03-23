@@ -50,7 +50,7 @@ where = ["src"]
 # --- CLI Entry Points -----------------------------------------------------------------------------
 
 [project.scripts]
-glossa = "glossa.cli:app"
+glossa = "glossa.adapters.cli:app"
 
 # --- Tool Configurations --------------------------------------------------------------------------
 
