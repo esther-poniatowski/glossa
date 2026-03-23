@@ -9,6 +9,7 @@ Welcome to the glossa documentation.
 guide/getting-started
 guide/configuration
 guide/cli-reference
+guide/docstring-guide
 ```
 
 ```{toctree}
