@@ -2,35 +2,21 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
-from glossa.core.contracts import RulePolicy, Severity, TargetKind
-
-
-# ---------------------------------------------------------------------------
-# Shared RST directive scanner
-# ---------------------------------------------------------------------------
-
-def scan_rst_directives(
-    lines: tuple[str, ...],
-    directive_names: frozenset[str],
-) -> list[str]:
-    """Return directive names matched in *lines* from the given *directive_names* set."""
-    pattern = re.compile(
-        r"^\s*\.\.\s+(" + "|".join(re.escape(n) for n in directive_names) + r")\s*::",
-        re.IGNORECASE,
-    )
-    found: list[str] = []
-    for line in lines:
-        m = pattern.match(line)
-        if m:
-            found.append(m.group(1).lower())
-    return found
+from glossa.core.contracts import (
+    Diagnostic,
+    FixPlan,
+    LintTarget,
+    RulePolicy,
+    Severity,
+    TargetKind,
+    TextSpan,
+)
 
 if TYPE_CHECKING:
-    from glossa.core.contracts import Diagnostic, LintTarget
+    from glossa.domain.models import DocstringSpan
 
 
 @dataclass(frozen=True)
@@ -59,3 +45,27 @@ class Rule(Protocol):
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
         ...
+
+
+def make_diagnostic(
+    rule: Rule,
+    target: LintTarget,
+    context: RuleContext,
+    message: str,
+    span: DocstringSpan | TextSpan | None = None,
+    fix: FixPlan | None = None,
+) -> Diagnostic:
+    """Build a Diagnostic with code, severity, and target derived from context.
+
+    This enforces the invariants that ``code`` always matches the rule's
+    metadata, ``severity`` always comes from the resolved policy, and
+    ``target`` always comes from the lint target's ``ref``.
+    """
+    return Diagnostic(
+        code=rule.metadata.code,
+        message=message,
+        severity=context.policy.severity,
+        target=target.ref,
+        span=span,
+        fix=fix,
+    )

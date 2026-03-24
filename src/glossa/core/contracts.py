@@ -43,6 +43,16 @@ class Visibility(Enum):
     PRIVATE = "private"
 
 
+ALL_TARGET_KINDS: frozenset[TargetKind] = frozenset(TargetKind)
+CALLABLE_TARGET_KINDS: frozenset[TargetKind] = frozenset(
+    {TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}
+)
+NON_PROPERTY_KINDS: frozenset[TargetKind] = ALL_TARGET_KINDS - {TargetKind.PROPERTY}
+CALLABLE_AND_CLASS_KINDS: frozenset[TargetKind] = frozenset(
+    {TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.CLASS}
+)
+
+
 @dataclass(frozen=True)
 class ExtractedDocstring:
     body: str

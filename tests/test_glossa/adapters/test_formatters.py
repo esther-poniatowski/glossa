@@ -80,7 +80,7 @@ def test_format_text_single() -> None:
         severity=Severity.WARNING,
         span=_span(3, 4, 3, 40),
     )
-    result = format_text([diag], color=False)
+    result = format_text([diag], )
 
     assert "D200" in result
     assert "One-line docstring should fit on one line." in result
@@ -94,7 +94,7 @@ def test_format_text_fixable() -> None:
         message="Missing docstring in public module.",
         fix=_fix_plan(),
     )
-    result = format_text([diag], color=False)
+    result = format_text([diag], )
     assert "(fixable)" in result
 
 

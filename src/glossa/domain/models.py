@@ -237,3 +237,46 @@ class ParsedDocstring:
     extended_description_lines: tuple[str, ...]
     sections: tuple[SectionNode, ...]
     parse_issues: tuple[ParseIssue, ...]
+
+    def typed_section(self, kind: TypedSectionKind) -> TypedSection | None:
+        for section in self.sections:
+            if isinstance(section, TypedSection) and section.kind is kind:
+                return section
+        return None
+
+    def has_typed_section(self, kind: TypedSectionKind) -> bool:
+        return self.typed_section(kind) is not None
+
+    def inventory_section(self, kind: InventorySectionKind) -> InventorySection | None:
+        for section in self.sections:
+            if isinstance(section, InventorySection) and section.kind is kind:
+                return section
+        return None
+
+    def has_inventory_section(self, kind: InventorySectionKind) -> bool:
+        return self.inventory_section(kind) is not None
+
+    def see_also_section(self) -> SeeAlsoSection | None:
+        for section in self.sections:
+            if isinstance(section, SeeAlsoSection):
+                return section
+        return None
+
+    def all_text_lines(self) -> tuple[str, ...]:
+        parts: list[str] = []
+        if self.summary is not None:
+            parts.append(self.summary.text)
+        parts.extend(self.extended_description_lines)
+        for section in self.sections:
+            parts.extend(section.body_text_lines)
+        return tuple(parts)
+
+    def prose_text_lines(self) -> tuple[str, ...]:
+        parts: list[str] = []
+        if self.summary is not None:
+            parts.append(self.summary.text)
+        parts.extend(self.extended_description_lines)
+        for section in self.sections:
+            if isinstance(section, ProseSection):
+                parts.extend(section.body_lines)
+        return tuple(parts)

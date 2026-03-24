@@ -119,23 +119,6 @@ def analyze_file(
     )
 
 
-def lint_file(
-    source_id: str,
-    source_text: str,
-    extraction_port: ExtractionPort,
-    config: GlossaConfig,
-    registry: RuleRegistry,
-) -> tuple[Diagnostic, ...]:
-    """Return diagnostics for a single file."""
-    return analyze_file(
-        source_id=source_id,
-        source_text=source_text,
-        extraction_port=extraction_port,
-        config=config,
-        registry=registry,
-    ).diagnostics
-
-
 def assemble_lint_target(
     extracted: ExtractedTarget,
     parsed: ParsedDocstring | None,

@@ -4,41 +4,16 @@ from __future__ import annotations
 
 import re
 
-from glossa.domain.rules import RuleMetadata, RuleContext
 from glossa.core.contracts import (
-    Diagnostic,
+    ALL_TARGET_KINDS,
+    NON_PROPERTY_KINDS,
     DocstringEdit,
     EditKind,
     FixPlan,
     LintTarget,
     Severity,
-    TargetKind,
 )
-from glossa.domain.models import ProseSection
-
-
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
-
-_ALL_TARGET_KINDS: frozenset[TargetKind] = frozenset(
-    {
-        TargetKind.MODULE,
-        TargetKind.CLASS,
-        TargetKind.FUNCTION,
-        TargetKind.METHOD,
-        TargetKind.PROPERTY,
-    }
-)
-
-_NON_PROPERTY_KINDS: frozenset[TargetKind] = frozenset(
-    {
-        TargetKind.MODULE,
-        TargetKind.CLASS,
-        TargetKind.FUNCTION,
-        TargetKind.METHOD,
-    }
-)
+from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +67,7 @@ class D200:
         code="D200",
         description="Summary line is not imperative where imperative voice is required.",
         default_severity=Severity.CONVENTION,
-        applies_to=_NON_PROPERTY_KINDS,
+        applies_to=NON_PROPERTY_KINDS,
         fixable=False,
     )
 
@@ -109,16 +84,11 @@ class D200:
             return ()
 
         return (
-            Diagnostic(
-                code="D200",
-                message=(
-                    "Summary line should use imperative voice "
-                    f'(e.g. "Return …" not "{summary.text.split()[0]} …").'
-                ),
-                severity=context.policy.severity,
-                target=target.ref,
+            make_diagnostic(
+                self, target, context,
+                f'Summary line should use imperative voice '
+                f'(e.g. "Return \u2026" not "{summary.text.split()[0]} \u2026").',
                 span=summary.span,
-                fix=None,
             ),
         )
 
@@ -135,7 +105,7 @@ class D201:
         code="D201",
         description="Summary line missing terminal period.",
         default_severity=Severity.CONVENTION,
-        applies_to=_ALL_TARGET_KINDS,
+        applies_to=ALL_TARGET_KINDS,
         fixable=True,
     )
 
@@ -167,11 +137,9 @@ class D201:
         )
 
         return (
-            Diagnostic(
-                code="D201",
-                message="Summary line is missing a terminal period.",
-                severity=context.policy.severity,
-                target=target.ref,
+            make_diagnostic(
+                self, target, context,
+                "Summary line is missing a terminal period.",
                 span=summary.span,
                 fix=fix,
             ),
@@ -184,12 +152,7 @@ class D201:
 
 
 def _has_blank_line_after_summary(raw_body: str) -> bool:
-    """Return True when the raw docstring body has a blank line after the summary.
-
-    Scans the lines of *raw_body* for the first non-empty line (the summary)
-    and then checks whether the very next line is blank (empty or whitespace
-    only).
-    """
+    """Return True when the raw docstring body has a blank line after the summary."""
     lines = raw_body.splitlines()
     summary_line_index: int | None = None
 
@@ -199,12 +162,10 @@ def _has_blank_line_after_summary(raw_body: str) -> bool:
             break
 
     if summary_line_index is None:
-        # No summary content found.
         return True
 
     next_index = summary_line_index + 1
     if next_index >= len(lines):
-        # Summary is the last line; no body follows.
         return True
 
     return not lines[next_index].strip()
@@ -217,7 +178,7 @@ class D202:
         code="D202",
         description="Missing blank line after summary when body follows.",
         default_severity=Severity.CONVENTION,
-        applies_to=_ALL_TARGET_KINDS,
+        applies_to=ALL_TARGET_KINDS,
         fixable=True,
     )
 
@@ -232,7 +193,6 @@ class D202:
         if summary is None:
             return ()
 
-        # Only fire when a body exists after the summary.
         has_body = bool(parsed.extended_description_lines or parsed.sections)
         if not has_body:
             return ()
@@ -242,13 +202,10 @@ class D202:
             return ()
 
         return (
-            Diagnostic(
-                code="D202",
-                message="Missing blank line between summary and body.",
-                severity=context.policy.severity,
-                target=target.ref,
+            make_diagnostic(
+                self, target, context,
+                "Missing blank line between summary and body.",
                 span=summary.span,
-                fix=None,
             ),
         )
 
@@ -260,25 +217,6 @@ class D202:
 _FIRST_PERSON_RE = re.compile(r"\b(I|my|me|we|our|us)\b")
 
 
-def _collect_all_text(target: LintTarget) -> str:
-    """Concatenate summary, extended description, and section bodies."""
-    if target.docstring is None:
-        return ""
-
-    parsed = target.docstring
-    parts: list[str] = []
-
-    if parsed.summary is not None:
-        parts.append(parsed.summary.text)
-
-    parts.extend(parsed.extended_description_lines)
-
-    for section in parsed.sections:
-        parts.extend(section.body_text_lines)
-
-    return "\n".join(parts)
-
-
 class D203:
     """First-person voice in docstring."""
 
@@ -286,7 +224,7 @@ class D203:
         code="D203",
         description="First-person voice in docstring.",
         default_severity=Severity.WARNING,
-        applies_to=_ALL_TARGET_KINDS,
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -295,25 +233,15 @@ class D203:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        text = _collect_all_text(target)
-        # "I" is matched case-sensitively (uppercase only); others are matched
-        # case-insensitively via the pattern itself ("my", "me", "we", etc. are
-        # all lowercase in the pattern, so IGNORECASE is not needed — but "I"
-        # must be uppercase only which the pattern already enforces).
+        text = "\n".join(target.docstring.all_text_lines())
         match = _FIRST_PERSON_RE.search(text)
         if match is None:
             return ()
 
         return (
-            Diagnostic(
-                code="D203",
-                message=(
-                    f'Avoid first-person voice in docstrings (found "{match.group()}").'
-                ),
-                severity=context.policy.severity,
-                target=target.ref,
-                span=None,
-                fix=None,
+            make_diagnostic(
+                self, target, context,
+                f'Avoid first-person voice in docstrings (found "{match.group()}").',
             ),
         )
 
@@ -332,7 +260,7 @@ class D204:
         code="D204",
         description="Second-person voice in docstring.",
         default_severity=Severity.WARNING,
-        applies_to=_ALL_TARGET_KINDS,
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -341,21 +269,15 @@ class D204:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        text = _collect_all_text(target)
+        text = "\n".join(target.docstring.all_text_lines())
         match = _SECOND_PERSON_RE.search(text)
         if match is None:
             return ()
 
         return (
-            Diagnostic(
-                code="D204",
-                message=(
-                    f'Avoid second-person voice in docstrings (found "{match.group()}").'
-                ),
-                severity=context.policy.severity,
-                target=target.ref,
-                span=None,
-                fix=None,
+            make_diagnostic(
+                self, target, context,
+                f'Avoid second-person voice in docstrings (found "{match.group()}").',
             ),
         )
 
@@ -379,7 +301,7 @@ _MD_LINK_RE = re.compile(r"\[.+?\]\(.+?\)")
 def _detect_markdown(text: str) -> str | None:
     """Return a short description of the first Markdown pattern found, or None."""
     if _MD_HEADING_RE.search(text):
-        return "Markdown heading (`# …`)"
+        return "Markdown heading (`# \u2026`)"
     if _MD_FENCE_RE.search(text):
         return "Markdown fenced code block (` ``` `)"
     if _MD_LINK_RE.search(text):
@@ -394,7 +316,7 @@ class D205:
         code="D205",
         description="Markdown syntax where RST is required.",
         default_severity=Severity.WARNING,
-        applies_to=_ALL_TARGET_KINDS,
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -403,20 +325,14 @@ class D205:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        # Use the full raw body so headings at the start of lines are detected
-        # correctly (the multiline flag in _MD_HEADING_RE needs real newlines).
         raw_body = target.docstring.syntax.raw_body
         found = _detect_markdown(raw_body)
         if found is None:
             return ()
 
         return (
-            Diagnostic(
-                code="D205",
-                message=f"Markdown syntax detected in docstring: {found}. Use RST instead.",
-                severity=context.policy.severity,
-                target=target.ref,
-                span=None,
-                fix=None,
+            make_diagnostic(
+                self, target, context,
+                f"Markdown syntax detected in docstring: {found}. Use RST instead.",
             ),
         )

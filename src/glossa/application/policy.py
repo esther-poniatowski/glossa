@@ -7,7 +7,7 @@ from typing import Mapping
 
 from types import MappingProxyType
 
-from glossa.application.configuration import GlossaConfig, _rule_option_defaults
+from glossa.application.configuration import GlossaConfig, RuleSelection, _rule_option_defaults
 from glossa.core.contracts import RulePolicy, Severity
 
 ResolvedRulePolicy = RulePolicy
@@ -142,11 +142,11 @@ def _resolve_severity(
 
 def _resolve_options(
     rule_code: str,
-    rules: object,
+    rules: RuleSelection,
 ) -> Mapping[str, object]:
     """Merge defaults with user-supplied options for *rule_code*."""
     defaults = _rule_option_defaults(rule_code)
-    user = rules.rule_options.get(rule_code, {})  # type: ignore[union-attr]
+    user = rules.rule_options.get(rule_code, {})
     merged = {**defaults, **user}
     return MappingProxyType(merged)
 

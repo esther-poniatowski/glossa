@@ -1,7 +1,10 @@
 """Layer-neutral contracts shared across glossa."""
 
 from .contracts import (
+    ALL_TARGET_KINDS,
     AttributeFact,
+    CALLABLE_AND_CLASS_KINDS,
+    CALLABLE_TARGET_KINDS,
     Diagnostic,
     DocstringEdit,
     EditKind,
@@ -11,6 +14,7 @@ from .contracts import (
     FixPlan,
     LintTarget,
     ModuleSymbolFact,
+    NON_PROPERTY_KINDS,
     ParameterFact,
     RelatedTargetSnapshot,
     RelatedTargets,
@@ -27,7 +31,10 @@ from .contracts import (
 )
 
 __all__ = [
+    "ALL_TARGET_KINDS",
     "AttributeFact",
+    "CALLABLE_AND_CLASS_KINDS",
+    "CALLABLE_TARGET_KINDS",
     "Diagnostic",
     "DocstringEdit",
     "EditKind",
@@ -37,6 +44,7 @@ __all__ = [
     "FixPlan",
     "LintTarget",
     "ModuleSymbolFact",
+    "NON_PROPERTY_KINDS",
     "ParameterFact",
     "RelatedTargetSnapshot",
     "RelatedTargets",

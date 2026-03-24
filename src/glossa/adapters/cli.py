@@ -98,7 +98,6 @@ def lint(
             format_text(
                 all_diagnostics,
                 show_source=effective_config.output.show_source,
-                color=effective_config.output.color,
             )
         )
 
@@ -108,9 +107,7 @@ def lint(
         console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
 
     # Exit codes per design plan section 8.3
-    if result.operational_issues and all_diagnostics:
-        raise typer.Exit(code=4)
-    elif result.operational_issues:
+    if result.operational_issues:
         raise typer.Exit(code=4)
     elif all_diagnostics:
         raise typer.Exit(code=1)

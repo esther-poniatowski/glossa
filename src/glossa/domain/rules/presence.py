@@ -2,30 +2,22 @@
 
 from __future__ import annotations
 
-from glossa.domain.rules import RuleMetadata, RuleContext
-from glossa.core.contracts import Diagnostic, LintTarget, Severity, TargetKind, Visibility
-from glossa.domain.models import TypedSectionKind, InventorySectionKind, TypedSection, InventorySection
+from glossa.core.contracts import (
+    ALL_TARGET_KINDS,
+    CALLABLE_TARGET_KINDS,
+    Diagnostic,
+    LintTarget,
+    Severity,
+    TargetKind,
+    Visibility,
+)
+from glossa.domain.models import InventorySectionKind, TypedSectionKind
+from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _has_typed_section(docstring, kind: TypedSectionKind) -> bool:
-    """Return True if docstring contains a TypedSection with the given kind."""
-    return any(
-        isinstance(section, TypedSection) and section.kind is kind
-        for section in docstring.sections
-    )
-
-
-def _has_inventory_section(docstring, kind: InventorySectionKind) -> bool:
-    """Return True if docstring contains an InventorySection with the given kind."""
-    return any(
-        isinstance(section, InventorySection) and section.kind is kind
-        for section in docstring.sections
-    )
 
 
 def _documentable_params(target: LintTarget) -> list[str]:
@@ -39,79 +31,146 @@ def _documentable_params(target: LintTarget) -> list[str]:
     ]
 
 
-def _missing_docstring_check(
-    target: LintTarget,
-    context: RuleContext,
+# ---------------------------------------------------------------------------
+# Parameterized rule factories (Fix #3)
+# ---------------------------------------------------------------------------
+
+
+def _make_missing_docstring_rule(
     kind: TargetKind,
     code: str,
+    description: str,
     message: str,
-) -> tuple[Diagnostic, ...]:
-    """Shared logic for D100/D101: fire if a public target of *kind* has no docstring."""
-    if target.kind is kind and target.visibility is Visibility.PUBLIC and target.docstring is None:
-        return (
-            Diagnostic(
-                code=code,
-                message=message,
-                severity=context.policy.severity,
-                target=target.ref,
-                span=None,
-            ),
+) -> type:
+    """Factory for D100/D101: fire if a public target of *kind* has no docstring."""
+
+    class _Rule:
+        metadata = RuleMetadata(
+            code=code,
+            description=description,
+            default_severity=Severity.CONVENTION,
+            applies_to=frozenset({kind}),
+            fixable=False,
+            requires_docstring=False,
         )
-    return ()
+
+        def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+            if (
+                target.kind is kind
+                and target.visibility is Visibility.PUBLIC
+                and target.docstring is None
+            ):
+                return (make_diagnostic(self, target, context, message),)
+            return ()
+
+    _Rule.__name__ = code
+    _Rule.__qualname__ = code
+    _Rule.__doc__ = description
+    return _Rule
+
+
+def _make_missing_section_rule(
+    code: str,
+    description: str,
+    message: str,
+    section_kind: TypedSectionKind,
+    signature_field: str,
+    applies_to: frozenset[TargetKind],
+    option_key: str | None = None,
+) -> type:
+    """Factory for D104/D105: fire if a signature flag is True but section is missing."""
+
+    class _Rule:
+        metadata = RuleMetadata(
+            code=code,
+            description=description,
+            default_severity=Severity.WARNING,
+            applies_to=applies_to,
+            fixable=True,
+        )
+
+        def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+            if target.signature is None:
+                return ()
+            if not getattr(target.signature, signature_field):
+                return ()
+
+            if option_key is not None and target.kind is TargetKind.PROPERTY:
+                if not context.policy.options.get(option_key, True):
+                    return ()
+
+            if not target.docstring.has_typed_section(section_kind):
+                return (make_diagnostic(self, target, context, message),)
+            return ()
+
+    _Rule.__name__ = code
+    _Rule.__qualname__ = code
+    _Rule.__doc__ = description
+    return _Rule
+
+
+def _make_missing_fact_section_rule(
+    code: str,
+    description: str,
+    message: str,
+    fact_attr: str,
+    section_kind: TypedSectionKind,
+    confidence_filter: str = "high",
+    exclude_evidence: str | None = None,
+) -> type:
+    """Factory for D106/D107: fire if high-confidence facts exist but section is missing."""
+
+    class _Rule:
+        metadata = RuleMetadata(
+            code=code,
+            description=description,
+            default_severity=Severity.WARNING,
+            applies_to=CALLABLE_TARGET_KINDS,
+            fixable=False,
+        )
+
+        def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+            facts = getattr(target, fact_attr)
+            relevant = [
+                f for f in facts
+                if f.confidence == confidence_filter
+                and (exclude_evidence is None or getattr(f, "evidence", None) != exclude_evidence)
+            ]
+            if not relevant:
+                return ()
+
+            if not target.docstring.has_typed_section(section_kind):
+                return (make_diagnostic(self, target, context, message),)
+            return ()
+
+    _Rule.__name__ = code
+    _Rule.__qualname__ = code
+    _Rule.__doc__ = description
+    return _Rule
 
 
 # ---------------------------------------------------------------------------
 # D100 — Missing public module docstring
 # ---------------------------------------------------------------------------
 
-
-class D100:
-    """Missing public module docstring."""
-
-    metadata = RuleMetadata(
-        code="D100",
-        description="Missing public module docstring.",
-        default_severity=Severity.CONVENTION,
-        applies_to=frozenset({TargetKind.MODULE}),
-        fixable=False,
-        requires_docstring=False,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        return _missing_docstring_check(
-            target, context, TargetKind.MODULE, "D100", "Missing docstring in public module."
-        )
+D100 = _make_missing_docstring_rule(
+    kind=TargetKind.MODULE,
+    code="D100",
+    description="Missing public module docstring.",
+    message="Missing docstring in public module.",
+)
 
 
 # ---------------------------------------------------------------------------
 # D101 — Missing public class docstring
 # ---------------------------------------------------------------------------
 
-
-class D101:
-    """Missing public class docstring."""
-
-    metadata = RuleMetadata(
-        code="D101",
-        description="Missing public class docstring.",
-        default_severity=Severity.CONVENTION,
-        applies_to=frozenset({TargetKind.CLASS}),
-        fixable=False,
-        requires_docstring=False,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        return _missing_docstring_check(
-            target, context, TargetKind.CLASS, "D101", "Missing docstring in public class."
-        )
+D101 = _make_missing_docstring_rule(
+    kind=TargetKind.CLASS,
+    code="D101",
+    description="Missing public class docstring.",
+    message="Missing docstring in public class.",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -148,15 +207,7 @@ class D102:
             return ()
 
         if target.visibility is Visibility.PUBLIC:
-            return (
-                Diagnostic(
-                    code="D102",
-                    message="Missing docstring in public callable.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
+            return (make_diagnostic(self, target, context, "Missing docstring in public callable."),)
         return ()
 
 
@@ -183,8 +234,6 @@ class D103:
     ) -> tuple[Diagnostic, ...]:
         params = _documentable_params(target)
 
-        # For CLASS targets with no params on the class signature, check the
-        # related constructor's signature instead.
         if target.kind is TargetKind.CLASS and not params:
             constructor = target.related.constructor
             if constructor is not None and constructor.signature is not None:
@@ -197,14 +246,11 @@ class D103:
         if not params:
             return ()
 
-        if not _has_typed_section(target.docstring, TypedSectionKind.PARAMETERS):
+        if not target.docstring.has_typed_section(TypedSectionKind.PARAMETERS):
             return (
-                Diagnostic(
-                    code="D103",
-                    message="Missing Parameters section for documentable parameters.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Missing Parameters section for documentable parameters.",
                 ),
             )
         return ()
@@ -214,167 +260,58 @@ class D103:
 # D104 — Missing Returns section where required
 # ---------------------------------------------------------------------------
 
-
-class D104:
-    """Missing Returns section where required."""
-
-    metadata = RuleMetadata(
-        code="D104",
-        description="Missing Returns section where required.",
-        default_severity=Severity.WARNING,
-        applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
-        fixable=True,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        if target.signature is None:
-            return ()
-        if not target.signature.returns_value:
-            return ()
-
-        # For PROPERTY targets, check option before firing.
-        if target.kind is TargetKind.PROPERTY:
-            if not context.policy.options.get("simple_property_requires_returns", True):
-                return ()
-
-        if not _has_typed_section(target.docstring, TypedSectionKind.RETURNS):
-            return (
-                Diagnostic(
-                    code="D104",
-                    message="Missing Returns section where required.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+D104 = _make_missing_section_rule(
+    code="D104",
+    description="Missing Returns section where required.",
+    message="Missing Returns section where required.",
+    section_kind=TypedSectionKind.RETURNS,
+    signature_field="returns_value",
+    applies_to=CALLABLE_TARGET_KINDS,
+    option_key="simple_property_requires_returns",
+)
 
 
 # ---------------------------------------------------------------------------
 # D105 — Missing Yields section for generators
 # ---------------------------------------------------------------------------
 
-
-class D105:
-    """Missing Yields section for generators."""
-
-    metadata = RuleMetadata(
-        code="D105",
-        description="Missing Yields section for generators.",
-        default_severity=Severity.WARNING,
-        applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
-        fixable=True,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        if target.signature is None:
-            return ()
-        if not target.signature.yields_value:
-            return ()
-
-        if not _has_typed_section(target.docstring, TypedSectionKind.YIELDS):
-            return (
-                Diagnostic(
-                    code="D105",
-                    message="Missing Yields section for generator.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+D105 = _make_missing_section_rule(
+    code="D105",
+    description="Missing Yields section for generators.",
+    message="Missing Yields section for generator.",
+    section_kind=TypedSectionKind.YIELDS,
+    signature_field="yields_value",
+    applies_to=CALLABLE_TARGET_KINDS,
+)
 
 
 # ---------------------------------------------------------------------------
 # D106 — Missing Raises section for public-contract exceptions
 # ---------------------------------------------------------------------------
 
-
-class D106:
-    """Missing Raises section for public-contract exceptions."""
-
-    metadata = RuleMetadata(
-        code="D106",
-        description="Missing Raises section for public-contract exceptions.",
-        default_severity=Severity.WARNING,
-        applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
-        fixable=False,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-
-        high_confidence = [
-            exc
-            for exc in target.exceptions
-            if exc.confidence == "high" and exc.evidence != "reraise"
-        ]
-        if not high_confidence:
-            return ()
-
-        if not _has_typed_section(target.docstring, TypedSectionKind.RAISES):
-            return (
-                Diagnostic(
-                    code="D106",
-                    message="Missing Raises section for public-contract exceptions.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+D106 = _make_missing_fact_section_rule(
+    code="D106",
+    description="Missing Raises section for public-contract exceptions.",
+    message="Missing Raises section for public-contract exceptions.",
+    fact_attr="exceptions",
+    section_kind=TypedSectionKind.RAISES,
+    confidence_filter="high",
+    exclude_evidence="reraise",
+)
 
 
 # ---------------------------------------------------------------------------
 # D107 — Missing Warns section for public warnings
 # ---------------------------------------------------------------------------
 
-
-class D107:
-    """Missing Warns section for public warnings."""
-
-    metadata = RuleMetadata(
-        code="D107",
-        description="Missing Warns section for public warnings.",
-        default_severity=Severity.WARNING,
-        applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
-        fixable=False,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-
-        high_confidence = [
-            w for w in target.warnings if w.confidence == "high"
-        ]
-        if not high_confidence:
-            return ()
-
-        if not _has_typed_section(target.docstring, TypedSectionKind.WARNS):
-            return (
-                Diagnostic(
-                    code="D107",
-                    message="Missing Warns section for public warnings.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                ),
-            )
-        return ()
+D107 = _make_missing_fact_section_rule(
+    code="D107",
+    description="Missing Warns section for public warnings.",
+    message="Missing Warns section for public warnings.",
+    fact_attr="warnings",
+    section_kind=TypedSectionKind.WARNS,
+    confidence_filter="high",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -414,29 +351,23 @@ class D108:
 
         diagnostics: list[Diagnostic] = []
 
-        if public_classes >= threshold and not _has_inventory_section(
-            target.docstring, InventorySectionKind.CLASSES
+        if public_classes >= threshold and not target.docstring.has_inventory_section(
+            InventorySectionKind.CLASSES
         ):
             diagnostics.append(
-                Diagnostic(
-                    code="D108",
-                    message="Missing Classes inventory section in module docstring.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Missing Classes inventory section in module docstring.",
                 )
             )
 
-        if public_functions >= threshold and not _has_inventory_section(
-            target.docstring, InventorySectionKind.FUNCTIONS
+        if public_functions >= threshold and not target.docstring.has_inventory_section(
+            InventorySectionKind.FUNCTIONS
         ):
             diagnostics.append(
-                Diagnostic(
-                    code="D108",
-                    message="Missing Functions inventory section in module docstring.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Missing Functions inventory section in module docstring.",
                 )
             )
 
@@ -469,14 +400,11 @@ class D109:
         if not public_attrs:
             return ()
 
-        if not _has_typed_section(target.docstring, TypedSectionKind.ATTRIBUTES):
+        if not target.docstring.has_typed_section(TypedSectionKind.ATTRIBUTES):
             return (
-                Diagnostic(
-                    code="D109",
-                    message="Missing Attributes section for public class attributes.",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Missing Attributes section for public class attributes.",
                 ),
             )
         return ()
@@ -504,29 +432,24 @@ class D110:
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
 
-        constructor = target.related.get("constructor")
+        constructor = target.related.constructor
         if constructor is None:
             return ()
 
         constructor_has_params_section = (
             constructor.docstring is not None
-            and _has_typed_section(constructor.docstring, TypedSectionKind.PARAMETERS)
+            and constructor.docstring.has_typed_section(TypedSectionKind.PARAMETERS)
         )
-        class_has_params_section = _has_typed_section(
-            target.docstring, TypedSectionKind.PARAMETERS
+        class_has_params_section = target.docstring.has_typed_section(
+            TypedSectionKind.PARAMETERS
         )
 
         if constructor_has_params_section and not class_has_params_section:
             return (
-                Diagnostic(
-                    code="D110",
-                    message=(
-                        "Constructor parameters are documented in __init__ "
-                        "instead of the class docstring."
-                    ),
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Constructor parameters are documented in __init__ "
+                    "instead of the class docstring.",
                 ),
             )
         return ()
@@ -544,13 +467,7 @@ class D111:
         code="D111",
         description="Missing deprecation directive for deprecated public API.",
         default_severity=Severity.WARNING,
-        applies_to=frozenset({
-            TargetKind.MODULE,
-            TargetKind.CLASS,
-            TargetKind.FUNCTION,
-            TargetKind.METHOD,
-            TargetKind.PROPERTY,
-        }),
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -568,15 +485,10 @@ class D111:
 
         if target.docstring.deprecation is None:
             return (
-                Diagnostic(
-                    code="D111",
-                    message=(
-                        "Deprecated public API is missing a deprecation directive "
-                        "in its docstring."
-                    ),
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
+                make_diagnostic(
+                    self, target, context,
+                    "Deprecated public API is missing a deprecation directive "
+                    "in its docstring.",
                 ),
             )
         return ()

@@ -5,7 +5,14 @@ from __future__ import annotations
 import fnmatch
 import re
 
-from glossa.core.contracts import Diagnostic, LintTarget, Severity, TargetKind
+from glossa.core.contracts import (
+    ALL_TARGET_KINDS,
+    CALLABLE_AND_CLASS_KINDS,
+    Diagnostic,
+    LintTarget,
+    Severity,
+    TargetKind,
+)
 from glossa.domain.models import (
     ProseSection,
     ProseSectionKind,
@@ -13,143 +20,13 @@ from glossa.domain.models import (
     TypedSectionKind,
     UnknownSection,
 )
-from glossa.domain.rules import RuleContext, RuleMetadata, scan_rst_directives
-
-# ---------------------------------------------------------------------------
-# D300 — Section underline is malformed
-# ---------------------------------------------------------------------------
-
-_APPLIES_ALL = frozenset(
-    {
-        TargetKind.MODULE,
-        TargetKind.CLASS,
-        TargetKind.FUNCTION,
-        TargetKind.METHOD,
-        TargetKind.PROPERTY,
-    }
-)
-
-
-class D300:
-    """Section underline is malformed."""
-
-    metadata = RuleMetadata(
-        code="D300",
-        description="Section underline is malformed",
-        default_severity=Severity.WARNING,
-        applies_to=_APPLIES_ALL,
-        fixable=True,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        docstring = target.docstring
-        raw_body = docstring.syntax.raw_body
-        diagnostics: list[Diagnostic] = []
-
-        for section in docstring.sections:
-            if isinstance(section, UnknownSection):
-                continue
-
-            title = section.section_title
-            expected_len = len(title)
-
-            ul_span = section.underline_span
-            underline_text = raw_body[ul_span.start_offset : ul_span.end_offset]
-            # Strip surrounding whitespace/newlines to isolate dashes
-            underline_stripped = underline_text.strip()
-
-            malformed = (
-                not underline_stripped
-                or not re.fullmatch(r"-+", underline_stripped)
-                or len(underline_stripped) != expected_len
-            )
-
-            if malformed:
-                diagnostics.append(
-                    Diagnostic(
-                        code="D300",
-                        message=(
-                            f"Section '{title}' has a malformed underline: "
-                            f"expected {expected_len} dashes, "
-                            f"got {underline_stripped!r}"
-                        ),
-                        severity=context.policy.severity,
-                        target=target.ref,
-                        span=ul_span,
-                        fix=None,
-                    )
-                )
-
-        return tuple(diagnostics)
+from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._scanning import scan_rst_directives
 
 
 # ---------------------------------------------------------------------------
-# D301 — Section order violates NumPy policy
+# Shared helpers
 # ---------------------------------------------------------------------------
-
-
-class D301:
-    """Section order violates NumPy policy."""
-
-    metadata = RuleMetadata(
-        code="D301",
-        description="Section order violates NumPy policy",
-        default_severity=Severity.CONVENTION,
-        applies_to=_APPLIES_ALL,
-        fixable=False,
-    )
-
-    def evaluate(
-        self,
-        target: LintTarget,
-        context: RuleContext,
-    ) -> tuple[Diagnostic, ...]:
-        sections = target.docstring.sections
-        if not sections:
-            return ()
-
-        # Collect canonical indices for sections that have a known position.
-        ordered: list[tuple[int, object]] = []
-        for section in sections:
-            idx = section.canonical_position
-            if idx is not None:
-                ordered.append((idx, section))
-
-        # Check that canonical indices are non-decreasing.
-        diagnostics: list[Diagnostic] = []
-        prev_idx = -1
-        for idx, section in ordered:
-            if idx < prev_idx:
-                title = section.section_title
-                diagnostics.append(
-                    Diagnostic(
-                        code="D301",
-                        message=(
-                            f"Section '{title}' appears out of canonical NumPy order"
-                        ),
-                        severity=context.policy.severity,
-                        target=target.ref,
-                        span=section.span,
-                        fix=None,
-                    )
-                )
-            else:
-                prev_idx = idx
-
-        return tuple(diagnostics)
-
-
-# ---------------------------------------------------------------------------
-# D302 — Undocumented parameter present in signature
-# ---------------------------------------------------------------------------
-
-_APPLIES_CALLABLE = frozenset(
-    {TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.CLASS}
-)
 
 _EXCLUDED_PARAM_NAMES = frozenset({"self", "cls"})
 
@@ -158,14 +35,14 @@ def _docstring_param_names(target: LintTarget) -> frozenset[str]:
     """Return parameter names listed in the Parameters section of *target*."""
     if target.docstring is None:
         return frozenset()
-    for section in target.docstring.sections:
-        if isinstance(section, TypedSection) and section.kind is TypedSectionKind.PARAMETERS:
-            return frozenset(
-                entry.name
-                for entry in section.entries
-                if entry.name is not None
-            )
-    return frozenset()
+    params_section = target.docstring.typed_section(TypedSectionKind.PARAMETERS)
+    if params_section is None:
+        return frozenset()
+    return frozenset(
+        entry.name
+        for entry in params_section.entries
+        if entry.name is not None
+    )
 
 
 def _signature_param_names(target: LintTarget) -> frozenset[str]:
@@ -191,6 +68,116 @@ def _constructor_param_names(target: LintTarget) -> frozenset[str]:
     )
 
 
+# ---------------------------------------------------------------------------
+# D300 — Section underline is malformed
+# ---------------------------------------------------------------------------
+
+
+class D300:
+    """Section underline is malformed."""
+
+    metadata = RuleMetadata(
+        code="D300",
+        description="Section underline is malformed",
+        default_severity=Severity.WARNING,
+        applies_to=ALL_TARGET_KINDS,
+        fixable=True,
+    )
+
+    def evaluate(
+        self,
+        target: LintTarget,
+        context: RuleContext,
+    ) -> tuple[Diagnostic, ...]:
+        docstring = target.docstring
+        raw_body = docstring.syntax.raw_body
+        diagnostics: list[Diagnostic] = []
+
+        for section in docstring.sections:
+            if isinstance(section, UnknownSection):
+                continue
+
+            title = section.section_title
+            expected_len = len(title)
+
+            ul_span = section.underline_span
+            underline_text = raw_body[ul_span.start_offset : ul_span.end_offset]
+            underline_stripped = underline_text.strip()
+
+            malformed = (
+                not underline_stripped
+                or not re.fullmatch(r"-+", underline_stripped)
+                or len(underline_stripped) != expected_len
+            )
+
+            if malformed:
+                diagnostics.append(
+                    make_diagnostic(
+                        self, target, context,
+                        f"Section '{title}' has a malformed underline: "
+                        f"expected {expected_len} dashes, "
+                        f"got {underline_stripped!r}",
+                        span=ul_span,
+                    )
+                )
+
+        return tuple(diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# D301 — Section order violates NumPy policy
+# ---------------------------------------------------------------------------
+
+
+class D301:
+    """Section order violates NumPy policy."""
+
+    metadata = RuleMetadata(
+        code="D301",
+        description="Section order violates NumPy policy",
+        default_severity=Severity.CONVENTION,
+        applies_to=ALL_TARGET_KINDS,
+        fixable=False,
+    )
+
+    def evaluate(
+        self,
+        target: LintTarget,
+        context: RuleContext,
+    ) -> tuple[Diagnostic, ...]:
+        sections = target.docstring.sections
+        if not sections:
+            return ()
+
+        ordered: list[tuple[int, object]] = []
+        for section in sections:
+            idx = section.canonical_position
+            if idx is not None:
+                ordered.append((idx, section))
+
+        diagnostics: list[Diagnostic] = []
+        prev_idx = -1
+        for idx, section in ordered:
+            if idx < prev_idx:
+                title = section.section_title
+                diagnostics.append(
+                    make_diagnostic(
+                        self, target, context,
+                        f"Section '{title}' appears out of canonical NumPy order",
+                        span=section.span,
+                    )
+                )
+            else:
+                prev_idx = idx
+
+        return tuple(diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# D302 — Undocumented parameter present in signature
+# ---------------------------------------------------------------------------
+
+
 class D302:
     """Undocumented parameter present in signature."""
 
@@ -198,7 +185,7 @@ class D302:
         code="D302",
         description="Undocumented parameter present in signature",
         default_severity=Severity.WARNING,
-        applies_to=_APPLIES_CALLABLE,
+        applies_to=CALLABLE_AND_CLASS_KINDS,
         fixable=True,
     )
 
@@ -217,13 +204,9 @@ class D302:
         diagnostics: list[Diagnostic] = []
         for name in sorted(missing):
             diagnostics.append(
-                Diagnostic(
-                    code="D302",
-                    message=f"Parameter '{name}' is in the signature but missing from the docstring",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                    fix=None,
+                make_diagnostic(
+                    self, target, context,
+                    f"Parameter '{name}' is in the signature but missing from the docstring",
                 )
             )
 
@@ -242,7 +225,7 @@ class D303:
         code="D303",
         description="Extraneous parameter appears in docstring",
         default_severity=Severity.WARNING,
-        applies_to=_APPLIES_CALLABLE,
+        applies_to=CALLABLE_AND_CLASS_KINDS,
         fixable=False,
     )
 
@@ -261,13 +244,9 @@ class D303:
         diagnostics: list[Diagnostic] = []
         for name in sorted(extra):
             diagnostics.append(
-                Diagnostic(
-                    code="D303",
-                    message=f"Parameter '{name}' appears in the docstring but not in the signature",
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                    fix=None,
+                make_diagnostic(
+                    self, target, context,
+                    f"Parameter '{name}' appears in the docstring but not in the signature",
                 )
             )
 
@@ -286,7 +265,7 @@ class D304:
         code="D304",
         description="Deprecation directive is malformed or misplaced",
         default_severity=Severity.WARNING,
-        applies_to=_APPLIES_ALL,
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -301,26 +280,15 @@ class D304:
 
         diagnostics: list[Diagnostic] = []
 
-        # Check 1: version must be present.
         if deprecation.version is None:
             diagnostics.append(
-                Diagnostic(
-                    code="D304",
-                    message="Deprecation directive is missing a version",
-                    severity=context.policy.severity,
-                    target=target.ref,
+                make_diagnostic(
+                    self, target, context,
+                    "Deprecation directive is missing a version",
                     span=deprecation.span,
-                    fix=None,
                 )
             )
 
-        # Check 2: deprecation must appear before any sections and with a
-        # minimal extended description (i.e. it should be close to the top).
-        # The parser places the deprecation directive as a separate field;
-        # misplacement is indicated by sections or a non-empty
-        # extended_description appearing before it.  We approximate
-        # "misplaced" as: there are sections AND the extended description has
-        # content, suggesting the deprecation was buried after prose.
         has_sections = len(target.docstring.sections) > 0
         extended_non_empty = any(
             line.strip()
@@ -328,16 +296,11 @@ class D304:
         )
         if has_sections and extended_non_empty:
             diagnostics.append(
-                Diagnostic(
-                    code="D304",
-                    message=(
-                        "Deprecation directive should appear immediately after the "
-                        "summary, before the extended description and sections"
-                    ),
-                    severity=context.policy.severity,
-                    target=target.ref,
+                make_diagnostic(
+                    self, target, context,
+                    "Deprecation directive should appear immediately after the "
+                    "summary, before the extended description and sections",
                     span=deprecation.span,
-                    fix=None,
                 )
             )
 
@@ -361,7 +324,7 @@ class D305:
         code="D305",
         description="RST directive used where a NumPy section exists",
         default_severity=Severity.WARNING,
-        applies_to=_APPLIES_ALL,
+        applies_to=ALL_TARGET_KINDS,
         fixable=False,
     )
 
@@ -370,25 +333,16 @@ class D305:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        all_lines: list[str] = list(target.docstring.extended_description_lines)
-        for section in target.docstring.sections:
-            all_lines.extend(section.body_text_lines)
-
-        found = scan_rst_directives(tuple(all_lines), _D305_DIRECTIVES)
+        all_lines = target.docstring.all_text_lines()
+        found = scan_rst_directives(all_lines, _D305_DIRECTIVES)
         if not found:
             return ()
 
         return tuple(
-            Diagnostic(
-                code="D305",
-                message=(
-                    f"RST directive found where a NumPy section should be used: "
-                    f"'.. {directive}::'"
-                ),
-                severity=context.policy.severity,
-                target=target.ref,
-                span=None,
-                fix=None,
+            make_diagnostic(
+                self, target, context,
+                f"RST directive found where a NumPy section should be used: "
+                f"'.. {directive}::'",
             )
             for directive in found
         )
@@ -415,13 +369,11 @@ class D306:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        # Check whether this module is an API entry point.
         source_id = target.ref.source_id
         for pattern in context.policy.options.get("api_entry_modules", ()):
             if fnmatch.fnmatch(source_id, pattern):
                 return ()
 
-        # Look for an Examples section.
         diagnostics: list[Diagnostic] = []
         for section in target.docstring.sections:
             if (
@@ -429,16 +381,11 @@ class D306:
                 and section.kind is ProseSectionKind.EXAMPLES
             ):
                 diagnostics.append(
-                    Diagnostic(
-                        code="D306",
-                        message=(
-                            "Module docstring contains an Examples section but this "
-                            "module is not configured as an API entry point"
-                        ),
-                        severity=context.policy.severity,
-                        target=target.ref,
+                    make_diagnostic(
+                        self, target, context,
+                        "Module docstring contains an Examples section but this "
+                        "module is not configured as an API entry point",
                         span=section.span,
-                        fix=None,
                     )
                 )
 

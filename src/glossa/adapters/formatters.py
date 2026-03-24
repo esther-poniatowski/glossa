@@ -10,7 +10,6 @@ from glossa.domain.models import DocstringSpan
 def format_text(
     diagnostics: Sequence[Diagnostic],
     show_source: bool = True,
-    color: bool = True,
 ) -> str:
     """Format diagnostics as human-readable text."""
     if not diagnostics:
