@@ -69,6 +69,8 @@ class TypedEntry:
 
 
 # Canonical NumPy section ordering — shared by all consumers.
+_SEE_ALSO_KEY = "SeeAlso"
+
 _CANONICAL_POSITIONS: dict[object, int] = {
     TypedSectionKind.PARAMETERS: 0,
     TypedSectionKind.RETURNS: 1,
@@ -78,7 +80,7 @@ _CANONICAL_POSITIONS: dict[object, int] = {
     TypedSectionKind.ATTRIBUTES: 5,
     ProseSectionKind.NOTES: 6,
     ProseSectionKind.WARNINGS: 7,
-    "SeeAlso": 8,
+    _SEE_ALSO_KEY: 8,
     ProseSectionKind.EXAMPLES: 9,
     InventorySectionKind.CLASSES: 10,
     InventorySectionKind.FUNCTIONS: 11,
@@ -216,7 +218,7 @@ class SeeAlsoSection:
 
     @property
     def canonical_position(self) -> int | None:
-        return _CANONICAL_POSITIONS.get("SeeAlso")
+        return _CANONICAL_POSITIONS.get(_SEE_ALSO_KEY)
 
 
 @dataclass(frozen=True)

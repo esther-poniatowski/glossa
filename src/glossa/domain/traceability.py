@@ -187,6 +187,29 @@ def rules_for_clause(clause: str) -> tuple[str, ...]:
     return ()
 
 
+def validate_matrix_codes(registered_codes: frozenset[str]) -> tuple[str, ...]:
+    """Return matrix rule codes not present in *registered_codes*.
+
+    Parameters
+    ----------
+    registered_codes : frozenset[str]
+        Set of rule codes that exist in the rule registry.
+
+    Returns
+    -------
+    tuple[str, ...]
+        Sorted rule codes referenced by the traceability matrix but absent
+        from the registry.
+    """
+    matrix_codes: set[str] = set()
+    for entry in TRACEABILITY_MATRIX:
+        if entry.status == "out_of_scope":
+            continue
+        for code in entry.coverage:
+            matrix_codes.add(code)
+    return tuple(sorted(matrix_codes - registered_codes))
+
+
 def clause_for_rule(code: str) -> tuple[str, ...]:
     """Return all guide clauses that a given rule code covers.
 

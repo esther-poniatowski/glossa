@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum
 from types import MappingProxyType
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from glossa.application.contracts import Severity
 from glossa.errors import ConfigurationError
@@ -23,7 +23,7 @@ DEFAULT_TRIVIAL_DUNDER_ALLOWLIST = (
 class RuleOptionDescriptor:
     key: str
     default: object
-    validator: object  # Callable[[object, str], object]
+    validator: Callable[[object, str], object]
 
 
 # Single source of truth for built-in rule options: key, default, validator.
@@ -234,7 +234,7 @@ def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> dict[str
                 )
             result[key] = value
             continue
-        result[key] = descriptor.validator(value, key)  # type: ignore[operator]
+        result[key] = descriptor.validator(value, key)
 
     return result
 

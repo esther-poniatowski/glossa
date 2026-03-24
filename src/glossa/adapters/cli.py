@@ -31,6 +31,23 @@ def _output_format(value: str) -> OutputFormat:
         raise typer.BadParameter("Output format must be 'text' or 'json'.") from exc
 
 
+def _bootstrap_or_exit(config_path: str | None):
+    from glossa.adapters.bootstrap import bootstrap
+    from glossa.errors import GlossaError
+
+    try:
+        return bootstrap(config_path=config_path)
+    except GlossaError as exc:
+        console.print(f"[red]Startup error:[/red] {exc}")
+        raise typer.Exit(code=2)
+
+
+def _report_issues(issues) -> None:
+    for issue in issues:
+        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
+        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
+
+
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
@@ -69,16 +86,9 @@ def lint(
     ),
 ) -> None:
     """Lint Python source files for docstring issues."""
-    from glossa.adapters.bootstrap import bootstrap
     from glossa.adapters.formatters import format_json, format_text
-    from glossa.errors import GlossaError
 
-    try:
-        service = bootstrap(config_path=config)
-    except GlossaError as exc:
-        console.print(f"[red]Startup error:[/red] {exc}")
-        raise typer.Exit(code=2)
-
+    service = _bootstrap_or_exit(config)
     format_override = _output_format(output_format) if output_format is not None else None
     result = service.lint_paths(
         paths,
@@ -101,10 +111,7 @@ def lint(
             )
         )
 
-    # Report operational errors
-    for issue in result.operational_issues:
-        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
-        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
+    _report_issues(result.operational_issues)
 
     # Exit codes per design plan section 8.3
     if result.operational_issues:
@@ -128,24 +135,14 @@ def fix(
     ),
 ) -> None:
     """Apply automatic fixes to docstring issues."""
-    from glossa.adapters.bootstrap import bootstrap
-    from glossa.errors import GlossaError
-
-    try:
-        service = bootstrap(config_path=config)
-    except GlossaError as exc:
-        console.print(f"[red]Startup error:[/red] {exc}")
-        raise typer.Exit(code=2)
-
+    service = _bootstrap_or_exit(config)
     result = service.fix_paths(paths, dry_run=dry_run)
 
     if not result.fix_enabled:
         console.print("[yellow]Fix mode is disabled in configuration.[/yellow]")
         raise typer.Exit(code=0)
 
-    for issue in result.operational_issues:
-        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
-        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
+    _report_issues(result.operational_issues)
 
     fixable = result.fixable_diagnostics
     if not fixable:
@@ -179,19 +176,9 @@ def check(
     ),
 ) -> None:
     """Check if files need fixing (non-zero exit if fixes available)."""
-    from glossa.adapters.bootstrap import bootstrap
-    from glossa.errors import GlossaError
-
-    try:
-        service = bootstrap(config_path=config)
-    except GlossaError as exc:
-        console.print(f"[red]Startup error:[/red] {exc}")
-        raise typer.Exit(code=2)
-
+    service = _bootstrap_or_exit(config)
     result = service.check_paths(paths)
-    for issue in result.operational_issues:
-        prefix = f"{issue.source_id}: " if issue.source_id is not None else ""
-        console.print(f"[yellow]Warning:[/yellow] {prefix}{issue.message}", err=True)
+    _report_issues(result.operational_issues)
 
     if result.fixable_count:
         console.print(f"{result.fixable_count} issue(s) can be auto-fixed. Run `glossa fix` to apply.")
