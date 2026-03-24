@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator, Protocol, Sequence, runtime_checkable
 
 if TYPE_CHECKING:
-    from glossa.core.contracts import ExtractedTarget
+    from glossa.application.contracts import ExtractedTarget
     from glossa.domain.rules import Rule
 
 

@@ -7,7 +7,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Mapping, Sequence
 
-from glossa.core.contracts import Severity
+from glossa.application.contracts import Severity
 from glossa.errors import ConfigurationError
 
 DEFAULT_RULE_SELECT = ("D1xx", "D2xx", "D3xx", "D4xx", "D5xx")

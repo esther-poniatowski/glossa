@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     ALL_TARGET_KINDS,
     NON_PROPERTY_KINDS,
     DocstringEdit,
@@ -76,6 +76,8 @@ class D200:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         summary = target.docstring.summary
         if summary is None:
             return ()
@@ -114,6 +116,8 @@ class D201:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         summary = target.docstring.summary
         if summary is None:
             return ()
@@ -129,7 +133,6 @@ class D201:
                 DocstringEdit(
                     kind=EditKind.REPLACE,
                     span=summary.span,
-                    anchor="",
                     text=fixed_text,
                 ),
             ),
@@ -187,6 +190,8 @@ class D202:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         parsed = target.docstring
         summary = parsed.summary
 
@@ -233,6 +238,8 @@ class D203:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         text = "\n".join(target.docstring.all_text_lines())
         match = _FIRST_PERSON_RE.search(text)
         if match is None:
@@ -269,6 +276,8 @@ class D204:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         text = "\n".join(target.docstring.all_text_lines())
         match = _SECOND_PERSON_RE.search(text)
         if match is None:
@@ -325,6 +334,8 @@ class D205:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         raw_body = target.docstring.syntax.raw_body
         found = _detect_markdown(raw_body)
         if found is None:

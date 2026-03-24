@@ -9,7 +9,7 @@ from glossa.application.configuration import FixApplyMode, GlossaConfig
 from glossa.application.linting import AnalyzedFile, analyze_file
 from glossa.application.protocols import ExtractionPort, FilePort
 from glossa.application.registry import RuleRegistry
-from glossa.core.contracts import EditKind, FixPlan, SourceRef
+from glossa.application.contracts import EditKind, FixPlan, SourceRef
 from glossa.domain.fixes import intervals_overlap
 from glossa.errors import GlossaError
 
@@ -182,7 +182,7 @@ def _resolve_fix_plan(
     for edit in plan.edits:
         if edit.span is None:
             raise ValueError(
-                f"Unsupported anchor-based edit {edit.anchor!r}; explicit docstring spans are required."
+                "Edit is missing an explicit docstring span."
             )
         start = body_start + edit.span.start_offset
         end = body_start + edit.span.end_offset

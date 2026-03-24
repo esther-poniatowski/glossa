@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     CALLABLE_AND_CLASS_KINDS,
     CALLABLE_TARGET_KINDS,
     Diagnostic,
@@ -15,38 +15,7 @@ from glossa.core.contracts import (
 )
 from glossa.domain.models import TypedEntry, TypedSection, TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
-
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-
-def _get_signature_params(target: LintTarget) -> tuple:
-    """Get parameters from target.signature, excluding self/cls.
-
-    For CLASS targets, also checks the related constructor's signature when
-    the target's own signature has no parameters.
-    """
-    _EXCLUDED = frozenset({"self", "cls"})
-
-    def _filter(params: tuple) -> tuple:
-        return tuple(p for p in params if p.name not in _EXCLUDED)
-
-    if target.signature is not None:
-        params = _filter(target.signature.parameters)
-        if params:
-            return params
-
-    if target.kind is TargetKind.CLASS:
-        constructor_ref = target.related.constructor
-        if constructor_ref is not None and constructor_ref.signature is not None:
-            return _filter(constructor_ref.signature.parameters)
-
-    if target.signature is not None:
-        return _filter(target.signature.parameters)
-
-    return ()
+from glossa.domain.rules._parameters import documentable_params
 
 
 def _types_match(doc_type: str, annotation: str) -> bool:
@@ -94,7 +63,6 @@ def _make_entry_fix(
     entry: TypedEntry,
     annotation: str,
     description: str,
-    anchor: str,
     affected_rules: tuple[str, ...],
 ) -> FixPlan:
     """Build a FixPlan that replaces an entry's header with the corrected type."""
@@ -105,7 +73,6 @@ def _make_entry_fix(
             DocstringEdit(
                 kind=EditKind.REPLACE,
                 span=entry.span,
-                anchor=anchor,
                 text=_entry_with_type(entry, annotation),
             ),
         ),
@@ -118,53 +85,62 @@ def _make_entry_fix(
 # ---------------------------------------------------------------------------
 
 
-def _check_typed_entries(
+def _check_missing_types(
     rule,
     target: LintTarget,
     context: RuleContext,
     section_kind: TypedSectionKind,
     entries_with_annotation: list[tuple[TypedEntry, str]],
-    anchor_prefix: str,
-    check_missing: bool,
-    check_mismatch: bool,
-    missing_message: str,
-    mismatch_message_fn,
-    missing_affected: tuple[str, ...],
-    mismatch_affected: tuple[str, ...],
+    message: str,
+    affected_rules: tuple[str, ...],
 ) -> tuple[Diagnostic, ...]:
-    """Shared checker for missing/mismatched type entries in typed sections."""
+    """Check for entries that are missing a type annotation."""
     diagnostics: list[Diagnostic] = []
 
     for entry, annotation in entries_with_annotation:
-        if check_missing and entry.type_text is None:
-            if entry.name is not None:
-                anchor = f"{anchor_prefix}:{entry.name}"
-                desc = f"Add type '{annotation}' to parameter '{entry.name}'"
-            else:
-                anchor = f"{anchor_prefix}:entry"
-                desc = f"Add type '{annotation}' to {section_kind.value} entry"
-            fix = _make_entry_fix(target, entry, annotation, desc, anchor, missing_affected)
-            diagnostics.append(
-                make_diagnostic(rule, target, context, missing_message, span=entry.span, fix=fix)
+        if entry.type_text is not None:
+            continue
+        if entry.name is not None:
+            desc = f"Add type '{annotation}' to parameter '{entry.name}'"
+        else:
+            desc = f"Add type '{annotation}' to {section_kind.value} entry"
+        fix = _make_entry_fix(target, entry, annotation, desc, affected_rules)
+        diagnostics.append(
+            make_diagnostic(rule, target, context, message, span=entry.span, fix=fix)
+        )
+
+    return tuple(diagnostics)
+
+
+def _check_mismatched_types(
+    rule,
+    target: LintTarget,
+    context: RuleContext,
+    entries_with_annotation: list[tuple[TypedEntry, str]],
+    message_fn,
+    affected_rules: tuple[str, ...],
+) -> tuple[Diagnostic, ...]:
+    """Check for entries whose type does not match the annotation."""
+    diagnostics: list[Diagnostic] = []
+
+    for entry, annotation in entries_with_annotation:
+        if entry.type_text is None:
+            continue
+        if _types_match(entry.type_text, annotation):
+            continue
+        if entry.name is not None:
+            desc = f"Replace type '{entry.type_text}' with '{annotation}' for parameter '{entry.name}'"
+        else:
+            desc = f"Replace type '{entry.type_text}' with '{annotation}'"
+        fix = _make_entry_fix(target, entry, annotation, desc, affected_rules)
+        diagnostics.append(
+            make_diagnostic(
+                rule, target, context,
+                message_fn(entry, annotation),
+                span=entry.span,
+                fix=fix,
             )
-        elif check_mismatch and entry.type_text is not None:
-            if _types_match(entry.type_text, annotation):
-                continue
-            if entry.name is not None:
-                anchor = f"{anchor_prefix}:{entry.name}"
-                desc = f"Replace type '{entry.type_text}' with '{annotation}' for parameter '{entry.name}'"
-            else:
-                anchor = f"{anchor_prefix}:entry"
-                desc = f"Replace type '{entry.type_text}' with '{annotation}'"
-            fix = _make_entry_fix(target, entry, annotation, desc, anchor, mismatch_affected)
-            diagnostics.append(
-                make_diagnostic(
-                    rule, target, context,
-                    mismatch_message_fn(entry, annotation),
-                    span=entry.span,
-                    fix=fix,
-                )
-            )
+        )
 
     return tuple(diagnostics)
 
@@ -182,7 +158,7 @@ def _param_entries_with_annotation(target: LintTarget) -> list[tuple[TypedEntry,
     if params_section is None:
         return None
 
-    sig_params = {p.name: p for p in _get_signature_params(target)}
+    sig_params = {p.name: p for p in documentable_params(target)}
     result: list[tuple[TypedEntry, str]] = []
     for entry in params_section.entries:
         if entry.name is None:
@@ -232,17 +208,12 @@ class D400:
         pairs = _param_entries_with_annotation(target)
         if pairs is None:
             return ()
-        return _check_typed_entries(
+        return _check_missing_types(
             self, target, context,
             section_kind=TypedSectionKind.PARAMETERS,
             entries_with_annotation=pairs,
-            anchor_prefix="Parameters",
-            check_missing=True,
-            check_mismatch=False,
-            missing_message="Parameter is missing a type in the docstring",
-            mismatch_message_fn=None,
-            missing_affected=("D400", "D401"),
-            mismatch_affected=(),
+            message="Parameter is missing a type in the docstring",
+            affected_rules=("D400", "D401"),
         )
 
 
@@ -266,20 +237,14 @@ class D401:
         pairs = _param_entries_with_annotation(target)
         if pairs is None:
             return ()
-        return _check_typed_entries(
+        return _check_mismatched_types(
             self, target, context,
-            section_kind=TypedSectionKind.PARAMETERS,
             entries_with_annotation=pairs,
-            anchor_prefix="Parameters",
-            check_missing=False,
-            check_mismatch=True,
-            missing_message="",
-            mismatch_message_fn=lambda e, a: (
+            message_fn=lambda e, a: (
                 f"Parameter '{e.name}' type '{e.type_text}'"
                 f" does not match annotation '{a}'"
             ),
-            missing_affected=(),
-            mismatch_affected=("D401",),
+            affected_rules=("D401",),
         )
 
 
@@ -303,17 +268,12 @@ class D402:
         pairs = _section_entries_with_annotation(target, TypedSectionKind.RETURNS)
         if pairs is None:
             return ()
-        return _check_typed_entries(
+        return _check_missing_types(
             self, target, context,
             section_kind=TypedSectionKind.RETURNS,
             entries_with_annotation=pairs,
-            anchor_prefix="Returns",
-            check_missing=True,
-            check_mismatch=False,
-            missing_message="Returns section entry is missing a type",
-            mismatch_message_fn=None,
-            missing_affected=("D402", "D403"),
-            mismatch_affected=(),
+            message="Returns section entry is missing a type",
+            affected_rules=("D402", "D403"),
         )
 
 
@@ -337,19 +297,13 @@ class D403:
         pairs = _section_entries_with_annotation(target, TypedSectionKind.RETURNS)
         if pairs is None:
             return ()
-        return _check_typed_entries(
+        return _check_mismatched_types(
             self, target, context,
-            section_kind=TypedSectionKind.RETURNS,
             entries_with_annotation=pairs,
-            anchor_prefix="Returns",
-            check_missing=False,
-            check_mismatch=True,
-            missing_message="",
-            mismatch_message_fn=lambda e, a: (
+            message_fn=lambda e, a: (
                 f"Returns entry type '{e.type_text}' does not match annotation '{a}'"
             ),
-            missing_affected=(),
-            mismatch_affected=("D403",),
+            affected_rules=("D403",),
         )
 
 
@@ -373,19 +327,19 @@ class D404:
         pairs = _section_entries_with_annotation(target, TypedSectionKind.YIELDS)
         if pairs is None:
             return ()
-        return _check_typed_entries(
+        return _check_missing_types(
             self, target, context,
             section_kind=TypedSectionKind.YIELDS,
             entries_with_annotation=pairs,
-            anchor_prefix="Yields",
-            check_missing=True,
-            check_mismatch=True,
-            missing_message="Yields section entry is missing a type",
-            mismatch_message_fn=lambda e, a: (
+            message="Yields section entry is missing a type",
+            affected_rules=("D404",),
+        ) + _check_mismatched_types(
+            self, target, context,
+            entries_with_annotation=pairs,
+            message_fn=lambda e, a: (
                 f"Yields entry type '{e.type_text}' does not match annotation '{a}'"
             ),
-            missing_affected=("D404",),
-            mismatch_affected=("D404",),
+            affected_rules=("D404",),
         )
 
 
@@ -406,6 +360,8 @@ class D405:
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         attrs_section = target.docstring.typed_section(TypedSectionKind.ATTRIBUTES)
         if attrs_section is None or not attrs_section.entries:
             return ()
@@ -423,15 +379,10 @@ class D405:
         if not pairs:
             return ()
 
-        return _check_typed_entries(
+        return _check_missing_types(
             self, target, context,
             section_kind=TypedSectionKind.ATTRIBUTES,
             entries_with_annotation=pairs,
-            anchor_prefix="Attributes",
-            check_missing=True,
-            check_mismatch=False,
-            missing_message="Attribute is missing a type in the docstring",
-            mismatch_message_fn=None,
-            missing_affected=("D405",),
-            mismatch_affected=(),
+            message="Attribute is missing a type in the docstring",
+            affected_rules=("D405",),
         )

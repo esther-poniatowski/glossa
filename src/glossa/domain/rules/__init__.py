@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     Diagnostic,
     FixPlan,
     LintTarget,

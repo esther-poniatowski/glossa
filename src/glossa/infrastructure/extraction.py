@@ -4,7 +4,7 @@ import ast
 import re
 from typing import Iterator
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,

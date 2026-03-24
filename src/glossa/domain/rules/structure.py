@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import re
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     ALL_TARGET_KINDS,
     CALLABLE_AND_CLASS_KINDS,
     Diagnostic,
@@ -18,17 +18,17 @@ from glossa.domain.models import (
     ProseSectionKind,
     TypedSection,
     TypedSectionKind,
+    UnderlinedSectionProtocol,
     UnknownSection,
 )
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._parameters import documentable_param_names
 from glossa.domain.rules._scanning import scan_rst_directives
 
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-_EXCLUDED_PARAM_NAMES = frozenset({"self", "cls"})
 
 
 def _docstring_param_names(target: LintTarget) -> frozenset[str]:
@@ -42,29 +42,6 @@ def _docstring_param_names(target: LintTarget) -> frozenset[str]:
         entry.name
         for entry in params_section.entries
         if entry.name is not None
-    )
-
-
-def _signature_param_names(target: LintTarget) -> frozenset[str]:
-    """Return documentable parameter names from the target signature."""
-    if target.signature is None:
-        return frozenset()
-    return frozenset(
-        p.name
-        for p in target.signature.parameters
-        if p.name not in _EXCLUDED_PARAM_NAMES
-    )
-
-
-def _constructor_param_names(target: LintTarget) -> frozenset[str]:
-    """Return parameter names from the related constructor snapshot."""
-    constructor = target.related.constructor
-    if constructor is None or constructor.signature is None:
-        return frozenset()
-    return frozenset(
-        p.name
-        for p in constructor.signature.parameters
-        if p.name not in _EXCLUDED_PARAM_NAMES
     )
 
 
@@ -89,12 +66,14 @@ class D300:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         docstring = target.docstring
         raw_body = docstring.syntax.raw_body
         diagnostics: list[Diagnostic] = []
 
         for section in docstring.sections:
-            if isinstance(section, UnknownSection):
+            if not isinstance(section, UnderlinedSectionProtocol):
                 continue
 
             title = section.section_title
@@ -145,6 +124,8 @@ class D301:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         sections = target.docstring.sections
         if not sections:
             return ()
@@ -194,10 +175,7 @@ class D302:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        sig_names = _signature_param_names(target)
-        if target.kind is TargetKind.CLASS:
-            sig_names = sig_names | _constructor_param_names(target)
-
+        sig_names = documentable_param_names(target)
         doc_names = _docstring_param_names(target)
         missing = sig_names - doc_names
 
@@ -234,10 +212,7 @@ class D303:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        sig_names = _signature_param_names(target)
-        if target.kind is TargetKind.CLASS:
-            sig_names = sig_names | _constructor_param_names(target)
-
+        sig_names = documentable_param_names(target)
         doc_names = _docstring_param_names(target)
         extra = doc_names - sig_names
 
@@ -274,6 +249,8 @@ class D304:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         deprecation = target.docstring.deprecation
         if deprecation is None:
             return ()
@@ -333,6 +310,8 @@ class D305:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         all_lines = target.docstring.all_text_lines()
         found = scan_rst_directives(all_lines, _D305_DIRECTIVES)
         if not found:
@@ -369,6 +348,8 @@ class D306:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         source_id = target.ref.source_id
         for pattern in context.policy.options.get("api_entry_modules", ()):
             if fnmatch.fnmatch(source_id, pattern):

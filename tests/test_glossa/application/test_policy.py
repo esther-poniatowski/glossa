@@ -13,7 +13,7 @@ from glossa.application.configuration import (
     RuleSelection,
     SuppressionPolicy,
 )
-from glossa.core.contracts import Severity
+from glossa.application.contracts import Severity
 from glossa.application.policy import (
     is_rule_suppressed,
     matches_pattern,

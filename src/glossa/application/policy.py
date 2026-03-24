@@ -8,7 +8,7 @@ from typing import Mapping
 from types import MappingProxyType
 
 from glossa.application.configuration import GlossaConfig, RuleSelection, _rule_option_defaults
-from glossa.core.contracts import RulePolicy, Severity
+from glossa.application.contracts import RulePolicy, Severity
 
 ResolvedRulePolicy = RulePolicy
 
@@ -119,7 +119,7 @@ def resolve_rule_policy(
     per_file_disabled = False
     for glob_pattern, ignored_codes in rules.per_file_ignores.items():
         if matches_file_pattern(source_id, glob_pattern):
-            if rule_code in ignored_codes:
+            if any(matches_pattern(rule_code, code) for code in ignored_codes):
                 per_file_disabled = True
                 break
 

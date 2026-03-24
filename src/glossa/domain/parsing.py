@@ -569,6 +569,8 @@ def parse_docstring(
             sections.append(
                 UnknownSection(
                     title=title,
+                    title_span=title_span,
+                    underline_span=underline_span,
                     body_lines=tuple(line.rstrip() for line in body_lines),
                     span=section_span,
                 )

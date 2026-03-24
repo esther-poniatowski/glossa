@@ -1,4 +1,9 @@
-"""Layer-neutral DTOs shared across glossa."""
+"""Cross-layer DTOs shared across glossa.
+
+This module is owned by the application layer. Infrastructure constructs
+these DTOs; the domain consumes them. All types are immutable and free
+of infrastructure-specific classes such as ``Path`` or ``ast.AST``.
+"""
 
 from __future__ import annotations
 
@@ -193,7 +198,6 @@ class EditKind(Enum):
 class DocstringEdit:
     kind: EditKind
     span: DocstringSpan | None
-    anchor: str
     text: str
 
 

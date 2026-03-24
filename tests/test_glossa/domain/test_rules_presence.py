@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,

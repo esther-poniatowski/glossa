@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Literal, Protocol, runtime_checkable
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +83,34 @@ _CANONICAL_POSITIONS: dict[object, int] = {
     InventorySectionKind.CLASSES: 10,
     InventorySectionKind.FUNCTIONS: 11,
 }
+
+
+@runtime_checkable
+class SectionProtocol(Protocol):
+    """Shared interface for all docstring section types."""
+
+    @property
+    def section_title(self) -> str: ...
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]: ...
+
+    @property
+    def canonical_position(self) -> int | None: ...
+
+    @property
+    def span(self) -> DocstringSpan: ...
+
+
+@runtime_checkable
+class UnderlinedSectionProtocol(SectionProtocol, Protocol):
+    """Section type that has a title underline."""
+
+    @property
+    def title_span(self) -> DocstringSpan: ...
+
+    @property
+    def underline_span(self) -> DocstringSpan: ...
 
 
 @dataclass(frozen=True)
@@ -201,6 +229,8 @@ class DeprecationDirective:
 @dataclass(frozen=True)
 class UnknownSection:
     title: str
+    title_span: DocstringSpan
+    underline_span: DocstringSpan
     body_lines: tuple[str, ...]
     span: DocstringSpan
 

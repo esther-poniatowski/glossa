@@ -12,7 +12,7 @@ from glossa.application.policy import (
 )
 from glossa.application.protocols import ExtractionPort
 from glossa.application.registry import RuleRegistry
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     Diagnostic,
     ExtractedTarget,
     LintTarget,

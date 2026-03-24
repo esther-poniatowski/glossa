@@ -2,33 +2,23 @@
 
 from __future__ import annotations
 
-from glossa.core.contracts import (
+from typing import Callable
+
+from glossa.application.contracts import (
     ALL_TARGET_KINDS,
     CALLABLE_TARGET_KINDS,
     Diagnostic,
+    ExceptionFact,
     LintTarget,
     Severity,
+    SignatureFacts,
     TargetKind,
     Visibility,
+    WarningFact,
 )
 from glossa.domain.models import InventorySectionKind, TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _documentable_params(target: LintTarget) -> list[str]:
-    """Return parameter names from target.signature excluding 'self' and 'cls'."""
-    if target.signature is None:
-        return []
-    return [
-        p.name
-        for p in target.signature.parameters
-        if p.name not in ("self", "cls")
-    ]
+from glossa.domain.rules._parameters import documentable_param_names
 
 
 # ---------------------------------------------------------------------------
@@ -74,11 +64,11 @@ def _make_missing_section_rule(
     description: str,
     message: str,
     section_kind: TypedSectionKind,
-    signature_field: str,
+    signature_predicate: Callable[[SignatureFacts], bool],
     applies_to: frozenset[TargetKind],
     option_key: str | None = None,
 ) -> type:
-    """Factory for D104/D105: fire if a signature flag is True but section is missing."""
+    """Factory for D104/D105: fire if a signature predicate is True but section is missing."""
 
     class _Rule:
         metadata = RuleMetadata(
@@ -90,9 +80,9 @@ def _make_missing_section_rule(
         )
 
         def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
-            if target.signature is None:
+            if target.docstring is None or target.signature is None:
                 return ()
-            if not getattr(target.signature, signature_field):
+            if not signature_predicate(target.signature):
                 return ()
 
             if option_key is not None and target.kind is TargetKind.PROPERTY:
@@ -113,7 +103,7 @@ def _make_missing_fact_section_rule(
     code: str,
     description: str,
     message: str,
-    fact_attr: str,
+    fact_accessor: Callable[[LintTarget], tuple[ExceptionFact, ...] | tuple[WarningFact, ...]],
     section_kind: TypedSectionKind,
     confidence_filter: str = "high",
     exclude_evidence: str | None = None,
@@ -130,7 +120,9 @@ def _make_missing_fact_section_rule(
         )
 
         def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
-            facts = getattr(target, fact_attr)
+            if target.docstring is None:
+                return ()
+            facts = fact_accessor(target)
             relevant = [
                 f for f in facts
                 if f.confidence == confidence_filter
@@ -232,21 +224,10 @@ class D103:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        params = _documentable_params(target)
-
-        if target.kind is TargetKind.CLASS and not params:
-            constructor = target.related.constructor
-            if constructor is not None and constructor.signature is not None:
-                params = [
-                    p.name
-                    for p in constructor.signature.parameters
-                    if p.name not in ("self", "cls")
-                ]
-
-        if not params:
+        if not documentable_param_names(target):
             return ()
 
-        if not target.docstring.has_typed_section(TypedSectionKind.PARAMETERS):
+        if target.docstring is None or not target.docstring.has_typed_section(TypedSectionKind.PARAMETERS):
             return (
                 make_diagnostic(
                     self, target, context,
@@ -265,7 +246,7 @@ D104 = _make_missing_section_rule(
     description="Missing Returns section where required.",
     message="Missing Returns section where required.",
     section_kind=TypedSectionKind.RETURNS,
-    signature_field="returns_value",
+    signature_predicate=lambda s: s.returns_value,
     applies_to=CALLABLE_TARGET_KINDS,
     option_key="simple_property_requires_returns",
 )
@@ -280,7 +261,7 @@ D105 = _make_missing_section_rule(
     description="Missing Yields section for generators.",
     message="Missing Yields section for generator.",
     section_kind=TypedSectionKind.YIELDS,
-    signature_field="yields_value",
+    signature_predicate=lambda s: s.yields_value,
     applies_to=CALLABLE_TARGET_KINDS,
 )
 
@@ -293,7 +274,7 @@ D106 = _make_missing_fact_section_rule(
     code="D106",
     description="Missing Raises section for public-contract exceptions.",
     message="Missing Raises section for public-contract exceptions.",
-    fact_attr="exceptions",
+    fact_accessor=lambda t: t.exceptions,
     section_kind=TypedSectionKind.RAISES,
     confidence_filter="high",
     exclude_evidence="reraise",
@@ -308,7 +289,7 @@ D107 = _make_missing_fact_section_rule(
     code="D107",
     description="Missing Warns section for public warnings.",
     message="Missing Warns section for public warnings.",
-    fact_attr="warnings",
+    fact_accessor=lambda t: t.warnings,
     section_kind=TypedSectionKind.WARNS,
     confidence_filter="high",
 )
@@ -348,6 +329,9 @@ class D108:
             for sym in target.module_symbols
             if sym.kind == "function" and sym.is_public
         )
+
+        if target.docstring is None:
+            return ()
 
         diagnostics: list[Diagnostic] = []
 
@@ -400,7 +384,7 @@ class D109:
         if not public_attrs:
             return ()
 
-        if not target.docstring.has_typed_section(TypedSectionKind.ATTRIBUTES):
+        if target.docstring is None or not target.docstring.has_typed_section(TypedSectionKind.ATTRIBUTES):
             return (
                 make_diagnostic(
                     self, target, context,
@@ -440,8 +424,9 @@ class D110:
             constructor.docstring is not None
             and constructor.docstring.has_typed_section(TypedSectionKind.PARAMETERS)
         )
-        class_has_params_section = target.docstring.has_typed_section(
-            TypedSectionKind.PARAMETERS
+        class_has_params_section = (
+            target.docstring is not None
+            and target.docstring.has_typed_section(TypedSectionKind.PARAMETERS)
         )
 
         if constructor_has_params_section and not class_has_params_section:
@@ -483,7 +468,7 @@ class D111:
         if not has_deprecated_decorator:
             return ()
 
-        if target.docstring.deprecation is None:
+        if target.docstring is None or target.docstring.deprecation is None:
             return (
                 make_diagnostic(
                     self, target, context,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     ALL_TARGET_KINDS,
     CALLABLE_TARGET_KINDS,
     Diagnostic,
@@ -101,6 +101,8 @@ class D501:
         if method_name in allowlist:
             return ()
 
+        if target.docstring is None:
+            return ()
         summary = target.docstring.summary
         if summary is None:
             return ()
@@ -134,6 +136,8 @@ class D502:
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         sig = target.signature
         if sig is None:
             return ()
@@ -160,7 +164,6 @@ class D502:
                 DocstringEdit(
                     kind=EditKind.DELETE,
                     span=section.span,
-                    anchor="",
                     text="",
                 ),
             ),
@@ -203,6 +206,8 @@ class D503:
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+        if target.docstring is None:
+            return ()
         all_lines = target.docstring.all_text_lines()
         directives = scan_rst_directives(all_lines, _D503_DIRECTIVES)
         if not directives:

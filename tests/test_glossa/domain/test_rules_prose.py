@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from glossa.core.contracts import (
+from glossa.application.contracts import (
     AttributeFact,
     ExceptionFact,
     LintTarget,
