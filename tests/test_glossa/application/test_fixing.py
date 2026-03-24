@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from glossa.application.contracts import (
+from glossa.application.configuration import (
     FixApplyMode,
     FixPolicy,
     GlossaConfig,

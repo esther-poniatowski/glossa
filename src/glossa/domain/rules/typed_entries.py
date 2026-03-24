@@ -99,7 +99,7 @@ def _get_signature_params(target: LintTarget) -> tuple:
 
     # For CLASS targets, fall back to the related constructor's signature.
     if target.kind is TargetKind.CLASS:
-        constructor_ref = target.related.get("constructor")
+        constructor_ref = target.related.constructor
         if constructor_ref is not None and constructor_ref.signature is not None:
             return _filter(constructor_ref.signature.parameters)
 
@@ -205,9 +205,6 @@ class D400:
         tuple[Diagnostic, ...]
             Zero or more diagnostics.
         """
-        if target.docstring is None:
-            return ()
-
         sections = target.docstring.sections
         params_section = _find_section(sections, TypedSectionKind.PARAMETERS)
         if params_section is None:
@@ -224,7 +221,6 @@ class D400:
 
             sig_param = sig_params.get(entry.name)
             if sig_param is None or sig_param.annotation is None:
-                # No annotation available to suggest — skip.
                 continue
 
             annotation = sig_param.annotation
@@ -292,9 +288,6 @@ class D401:
         tuple[Diagnostic, ...]
             Zero or more diagnostics.
         """
-        if target.docstring is None:
-            return ()
-
         sections = target.docstring.sections
         params_section = _find_section(sections, TypedSectionKind.PARAMETERS)
         if params_section is None:
@@ -371,19 +364,38 @@ class D402:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        return _check_entry_types(
-            target,
-            context,
-            section_kind=TypedSectionKind.RETURNS,
-            annotation_source="return",
-            code_missing="D402",
-            code_mismatch="__skip__",
-            msg_missing="Returns section entry is missing a type",
-            msg_mismatch_fn=lambda doc, ann: "",
-            affected_missing=("D402", "D403"),
-            affected_mismatch=(),
-            anchor="Returns:entry",
-        )
+        entries_with_ann = _section_entries_with_annotation(target, TypedSectionKind.RETURNS)
+        if entries_with_ann is None:
+            return ()
+
+        diagnostics: list[Diagnostic] = []
+        for entry, annotation in entries_with_ann:
+            if entry.type_text is not None:
+                continue
+            fix = FixPlan(
+                description=f"Add return type '{annotation}' to Returns entry",
+                target=target.ref,
+                edits=(
+                    DocstringEdit(
+                        kind=EditKind.REPLACE,
+                        span=entry.span,
+                        anchor="Returns:entry",
+                        text=_entry_with_type(entry, annotation),
+                    ),
+                ),
+                affected_rules=("D402", "D403"),
+            )
+            diagnostics.append(
+                Diagnostic(
+                    code="D402",
+                    message="Returns section entry is missing a type",
+                    severity=context.policy.severity,
+                    target=target.ref,
+                    span=entry.span,
+                    fix=fix,
+                )
+            )
+        return tuple(diagnostics)
 
 
 # ---------------------------------------------------------------------------
@@ -407,21 +419,42 @@ class D403:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        return _check_entry_types(
-            target,
-            context,
-            section_kind=TypedSectionKind.RETURNS,
-            annotation_source="return",
-            code_missing="__skip__",
-            code_mismatch="D403",
-            msg_missing="",
-            msg_mismatch_fn=lambda doc, ann: (
-                f"Returns entry type '{doc}' does not match annotation '{ann}'"
-            ),
-            affected_missing=(),
-            affected_mismatch=("D403",),
-            anchor="Returns:entry",
-        )
+        entries_with_ann = _section_entries_with_annotation(target, TypedSectionKind.RETURNS)
+        if entries_with_ann is None:
+            return ()
+
+        diagnostics: list[Diagnostic] = []
+        for entry, annotation in entries_with_ann:
+            if entry.type_text is None:
+                continue
+            if _types_match(entry.type_text, annotation):
+                continue
+            fix = FixPlan(
+                description=f"Replace return type '{entry.type_text}' with '{annotation}'",
+                target=target.ref,
+                edits=(
+                    DocstringEdit(
+                        kind=EditKind.REPLACE,
+                        span=entry.span,
+                        anchor="Returns:entry",
+                        text=_entry_with_type(entry, annotation),
+                    ),
+                ),
+                affected_rules=("D403",),
+            )
+            diagnostics.append(
+                Diagnostic(
+                    code="D403",
+                    message=(
+                        f"Returns entry type '{entry.type_text}' does not match annotation '{annotation}'"
+                    ),
+                    severity=context.policy.severity,
+                    target=target.ref,
+                    span=entry.span,
+                    fix=fix,
+                )
+            )
+        return tuple(diagnostics)
 
 
 # ---------------------------------------------------------------------------
@@ -445,21 +478,63 @@ class D404:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        return _check_entry_types(
-            target,
-            context,
-            section_kind=TypedSectionKind.YIELDS,
-            annotation_source="yield",
-            code_missing="D404",
-            code_mismatch="D404",
-            msg_missing="Yields section entry is missing a type",
-            msg_mismatch_fn=lambda doc, ann: (
-                f"Yields entry type '{doc}' does not match annotation '{ann}'"
-            ),
-            affected_missing=("D404",),
-            affected_mismatch=("D404",),
-            anchor="Yields:entry",
-        )
+        entries_with_ann = _section_entries_with_annotation(target, TypedSectionKind.YIELDS)
+        if entries_with_ann is None:
+            return ()
+
+        diagnostics: list[Diagnostic] = []
+        for entry, annotation in entries_with_ann:
+            if entry.type_text is None:
+                fix = FixPlan(
+                    description=f"Add yield type '{annotation}' to Yields entry",
+                    target=target.ref,
+                    edits=(
+                        DocstringEdit(
+                            kind=EditKind.REPLACE,
+                            span=entry.span,
+                            anchor="Yields:entry",
+                            text=_entry_with_type(entry, annotation),
+                        ),
+                    ),
+                    affected_rules=("D404",),
+                )
+                diagnostics.append(
+                    Diagnostic(
+                        code="D404",
+                        message="Yields section entry is missing a type",
+                        severity=context.policy.severity,
+                        target=target.ref,
+                        span=entry.span,
+                        fix=fix,
+                    )
+                )
+            elif not _types_match(entry.type_text, annotation):
+                fix = FixPlan(
+                    description=f"Replace yield type '{entry.type_text}' with '{annotation}'",
+                    target=target.ref,
+                    edits=(
+                        DocstringEdit(
+                            kind=EditKind.REPLACE,
+                            span=entry.span,
+                            anchor="Yields:entry",
+                            text=_entry_with_type(entry, annotation),
+                        ),
+                    ),
+                    affected_rules=("D404",),
+                )
+                diagnostics.append(
+                    Diagnostic(
+                        code="D404",
+                        message=(
+                            f"Yields entry type '{entry.type_text}' does not match annotation '{annotation}'"
+                        ),
+                        severity=context.policy.severity,
+                        target=target.ref,
+                        span=entry.span,
+                        fix=fix,
+                    )
+                )
+        return tuple(diagnostics)
 
 
 # ---------------------------------------------------------------------------
@@ -497,9 +572,6 @@ class D405:
         tuple[Diagnostic, ...]
             Zero or more diagnostics.
         """
-        if target.docstring is None:
-            return ()
-
         sections = target.docstring.sections
         attrs_section = _find_section(sections, TypedSectionKind.ATTRIBUTES)
         if attrs_section is None or not attrs_section.entries:
@@ -549,92 +621,26 @@ class D405:
 
 
 # ---------------------------------------------------------------------------
-# Private rendering helper
+# Shared section-entry iterator
 # ---------------------------------------------------------------------------
 
 
-def _check_entry_types(
+def _section_entries_with_annotation(
     target: LintTarget,
-    context: RuleContext,
     section_kind: TypedSectionKind,
-    annotation_source: str,
-    code_missing: str,
-    code_mismatch: str,
-    msg_missing: str,
-    msg_mismatch_fn,
-    affected_missing: tuple[str, ...],
-    affected_mismatch: tuple[str, ...],
-    anchor: str,
-) -> tuple[Diagnostic, ...]:
-    """Shared logic for D402/D403 and D404: check entry types against an annotation."""
+) -> list[tuple[TypedEntry, str]] | None:
+    """Return ``(entry, annotation)`` pairs for a typed section, or None if not applicable."""
     if target.docstring is None:
-        return ()
+        return None
     if target.signature is None or target.signature.return_annotation is None:
-        return ()
+        return None
 
-    sections = target.docstring.sections
-    section = _find_section(sections, section_kind)
+    section = _find_section(target.docstring.sections, section_kind)
     if section is None or not section.entries:
-        return ()
+        return None
 
     annotation = target.signature.return_annotation
-    diagnostics: list[Diagnostic] = []
-
-    for entry in section.entries:
-        if entry.type_text is None and code_missing != "__skip__":
-            fix = FixPlan(
-                description=f"Add {annotation_source} type '{annotation}' to {section_kind.value} entry",
-                target=target.ref,
-                edits=(
-                    DocstringEdit(
-                        kind=EditKind.REPLACE,
-                        span=entry.span,
-                        anchor=f"{section_kind.value}:entry",
-                        text=_entry_with_type(entry, annotation),
-                    ),
-                ),
-                affected_rules=affected_missing,
-            )
-            diagnostics.append(
-                Diagnostic(
-                    code=code_missing,
-                    message=msg_missing,
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=entry.span,
-                    fix=fix,
-                )
-            )
-        elif (
-            entry.type_text is not None
-            and code_mismatch != "__skip__"
-            and not _types_match(entry.type_text, annotation)
-        ):
-            fix = FixPlan(
-                description=f"Replace {annotation_source} type '{entry.type_text}' with '{annotation}'",
-                target=target.ref,
-                edits=(
-                    DocstringEdit(
-                        kind=EditKind.REPLACE,
-                        span=entry.span,
-                        anchor=f"{section_kind.value}:entry",
-                        text=_entry_with_type(entry, annotation),
-                    ),
-                ),
-                affected_rules=affected_mismatch,
-            )
-            diagnostics.append(
-                Diagnostic(
-                    code=code_mismatch,
-                    message=msg_mismatch_fn(entry.type_text, annotation),
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=entry.span,
-                    fix=fix,
-                )
-            )
-
-    return tuple(diagnostics)
+    return [(entry, annotation) for entry in section.entries]
 
 
 def _entry_with_type(entry: TypedEntry, type_text: str) -> str:

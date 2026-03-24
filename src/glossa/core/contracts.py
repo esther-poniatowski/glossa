@@ -137,6 +137,13 @@ class RelatedTargetSnapshot:
 
 
 @dataclass(frozen=True)
+class ResolvedRelatedTargets:
+    parent: RelatedTargetSnapshot | None = None
+    constructor: RelatedTargetSnapshot | None = None
+    property_getter: RelatedTargetSnapshot | None = None
+
+
+@dataclass(frozen=True)
 class LintTarget:
     ref: SourceRef
     kind: TargetKind
@@ -150,7 +157,7 @@ class LintTarget:
     attributes: tuple[AttributeFact, ...]
     module_symbols: tuple[ModuleSymbolFact, ...]
     decorators: tuple[str, ...]
-    related: Mapping[str, RelatedTargetSnapshot]
+    related: ResolvedRelatedTargets
 
 
 class Severity(Enum):

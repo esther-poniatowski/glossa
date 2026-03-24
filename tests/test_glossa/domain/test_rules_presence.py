@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.application.contracts import (
+from glossa.core.contracts import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,
@@ -12,6 +12,7 @@ from glossa.application.contracts import (
     ModuleSymbolFact,
     ParameterFact,
     RelatedTargetSnapshot,
+    ResolvedRelatedTargets,
     Severity,
     SignatureFacts,
     SourceRef,
@@ -58,7 +59,7 @@ def make_target(
     attributes: tuple[AttributeFact, ...] = (),
     module_symbols: tuple[ModuleSymbolFact, ...] = (),
     decorators: tuple[str, ...] = (),
-    related: dict | None = None,
+    related: ResolvedRelatedTargets | None = None,
 ) -> LintTarget:
     """Build a LintTarget with sensible defaults."""
     ref = SourceRef(source_id="mymodule.py", symbol_path=("mymodule",))
@@ -75,7 +76,7 @@ def make_target(
         attributes=attributes,
         module_symbols=module_symbols,
         decorators=decorators,
-        related=related if related is not None else {},
+        related=related if related is not None else ResolvedRelatedTargets(),
     )
 
 

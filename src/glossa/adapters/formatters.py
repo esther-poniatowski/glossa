@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from typing import Sequence
 
-from glossa.application.contracts import Diagnostic
-from glossa.core.contracts import TextSpan
+from glossa.core.contracts import Diagnostic, TextSpan
 from glossa.domain.models import DocstringSpan
 
 

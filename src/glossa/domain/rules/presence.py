@@ -74,6 +74,7 @@ class D100:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.MODULE}),
         fixable=False,
+        requires_docstring=False,
     )
 
     def evaluate(
@@ -100,6 +101,7 @@ class D101:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.CLASS}),
         fixable=False,
+        requires_docstring=False,
     )
 
     def evaluate(
@@ -126,6 +128,7 @@ class D102:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
         fixable=False,
+        requires_docstring=False,
     )
 
     def evaluate(
@@ -178,15 +181,12 @@ class D103:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         params = _documentable_params(target)
 
         # For CLASS targets with no params on the class signature, check the
         # related constructor's signature instead.
         if target.kind is TargetKind.CLASS and not params:
-            constructor = target.related.get("constructor")
+            constructor = target.related.constructor
             if constructor is not None and constructor.signature is not None:
                 params = [
                     p.name
@@ -231,8 +231,6 @@ class D104:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
         if target.signature is None:
             return ()
         if not target.signature.returns_value:
@@ -277,8 +275,6 @@ class D105:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
         if target.signature is None:
             return ()
         if not target.signature.yields_value:
@@ -318,8 +314,6 @@ class D106:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         high_confidence = [
             exc
@@ -363,8 +357,6 @@ class D107:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         high_confidence = [
             w for w in target.warnings if w.confidence == "high"
@@ -406,8 +398,6 @@ class D108:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         threshold = context.policy.options.get("inventory_threshold", 2)
 
@@ -474,8 +464,6 @@ class D109:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         public_attrs = [a for a in target.attributes if a.is_public]
         if not public_attrs:
@@ -515,8 +503,6 @@ class D110:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         constructor = target.related.get("constructor")
         if constructor is None:
@@ -573,8 +559,6 @@ class D111:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
 
         has_deprecated_decorator = any(
             "deprecated" in dec.lower() for dec in target.decorators

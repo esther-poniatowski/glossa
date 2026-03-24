@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from glossa.domain.rules import RuleMetadata, RuleContext
+from glossa.domain.rules import RuleMetadata, RuleContext, scan_rst_directives
 from glossa.core.contracts import (
     Diagnostic,
     DocstringEdit,
@@ -37,6 +37,7 @@ class D500:
             TargetKind.PROPERTY,
         }),
         fixable=False,
+        requires_docstring=False,
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
@@ -102,9 +103,6 @@ class D501:
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         method_name = target.ref.symbol_path[-1] if target.ref.symbol_path else ""
 
         # Only applies to dunder methods.
@@ -226,20 +224,7 @@ class D502:
 # D503 — Prose uses RST note/warning directive instead of a NumPy section
 # ---------------------------------------------------------------------------
 
-_RST_DIRECTIVE_PATTERN: re.Pattern[str] = re.compile(
-    r"^\s*\.\.\s+(note|warning)\s*::", re.IGNORECASE
-)
-
-
-def _scan_lines_for_rst_directives(lines: tuple[str, ...]) -> list[str]:
-    """Return a list of directive names found in lines that should be NumPy sections."""
-    found: list[str] = []
-    for line in lines:
-        match = _RST_DIRECTIVE_PATTERN.match(line)
-        if match:
-            found.append(match.group(1).lower())
-    return found
-
+_D503_DIRECTIVES = frozenset({"note", "warning"})
 
 _DIRECTIVE_TO_SECTION: dict[str, str] = {
     "note": "Notes",
@@ -267,39 +252,26 @@ class D503:
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
-        directives: list[str] = []
-
-        # Scan the extended description block.
-        directives.extend(
-            _scan_lines_for_rst_directives(target.docstring.extended_description_lines)
-        )
-
-        # Scan prose section body lines.
+        all_lines: list[str] = list(target.docstring.extended_description_lines)
         for section in target.docstring.sections:
             if isinstance(section, ProseSection):
-                directives.extend(_scan_lines_for_rst_directives(section.body_lines))
+                all_lines.extend(section.body_lines)
 
+        directives = scan_rst_directives(tuple(all_lines), _D503_DIRECTIVES)
         if not directives:
             return ()
 
-        diagnostics: list[Diagnostic] = []
-        for directive in directives:
-            section_name = _DIRECTIVE_TO_SECTION.get(directive, directive.capitalize())
-            diagnostics.append(
-                Diagnostic(
-                    code=self.metadata.code,
-                    message=(
-                        f"Use a NumPy-style '{section_name}' section instead of "
-                        f"the RST '.. {directive}::' directive."
-                    ),
-                    severity=context.policy.severity,
-                    target=target.ref,
-                    span=None,
-                    fix=None,
-                )
+        return tuple(
+            Diagnostic(
+                code=self.metadata.code,
+                message=(
+                    f"Use a NumPy-style '{_DIRECTIVE_TO_SECTION.get(d, d.capitalize())}' section instead of "
+                    f"the RST '.. {d}::' directive."
+                ),
+                severity=context.policy.severity,
+                target=target.ref,
+                span=None,
+                fix=None,
             )
-
-        return tuple(diagnostics)
+            for d in directives
+        )

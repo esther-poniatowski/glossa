@@ -7,53 +7,13 @@ import re
 
 from glossa.core.contracts import Diagnostic, LintTarget, Severity, TargetKind
 from glossa.domain.models import (
-    InventorySection,
     ProseSection,
     ProseSectionKind,
-    SectionNode,
-    SeeAlsoSection,
     TypedSection,
     TypedSectionKind,
     UnknownSection,
 )
-from glossa.domain.rules import RuleContext, RuleMetadata
-
-# ---------------------------------------------------------------------------
-# Canonical NumPy section order helpers
-# ---------------------------------------------------------------------------
-
-_CANONICAL_ORDER: dict[object, int] = {
-    TypedSectionKind.PARAMETERS: 0,
-    TypedSectionKind.RETURNS: 1,
-    TypedSectionKind.YIELDS: 2,
-    TypedSectionKind.RAISES: 3,
-    TypedSectionKind.WARNS: 4,
-    TypedSectionKind.ATTRIBUTES: 5,
-    ProseSectionKind.NOTES: 6,
-    ProseSectionKind.WARNINGS: 7,
-    # SeeAlsoSection has no kind enum; use a sentinel string key
-    "SeeAlso": 8,
-    ProseSectionKind.EXAMPLES: 9,
-    # InventorySection kinds
-    "Classes": 10,
-    "Functions": 11,
-}
-
-
-def _canonical_order(section: SectionNode) -> int | None:
-    """Return the canonical position index for *section*, or None if unknown."""
-    if isinstance(section, TypedSection):
-        return _CANONICAL_ORDER.get(section.kind)
-    if isinstance(section, ProseSection):
-        return _CANONICAL_ORDER.get(section.kind)
-    if isinstance(section, SeeAlsoSection):
-        return _CANONICAL_ORDER.get("SeeAlso")
-    if isinstance(section, InventorySection):
-        # Use the string value of InventorySectionKind (e.g. "Classes")
-        return _CANONICAL_ORDER.get(section.kind.value)
-    # UnknownSection — no canonical position
-    return None
-
+from glossa.domain.rules import RuleContext, RuleMetadata, scan_rst_directives
 
 # ---------------------------------------------------------------------------
 # D300 — Section underline is malformed
@@ -68,21 +28,6 @@ _APPLIES_ALL = frozenset(
         TargetKind.PROPERTY,
     }
 )
-
-
-def _section_title(section: SectionNode) -> str:
-    """Return the display title of *section*."""
-    if isinstance(section, TypedSection):
-        return section.kind.value
-    if isinstance(section, ProseSection):
-        return section.kind.value
-    if isinstance(section, SeeAlsoSection):
-        return "See Also"
-    if isinstance(section, InventorySection):
-        return section.kind.value
-    if isinstance(section, UnknownSection):
-        return section.title
-    return ""  # pragma: no cover
 
 
 class D300:
@@ -101,19 +46,15 @@ class D300:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         docstring = target.docstring
         raw_body = docstring.syntax.raw_body
         diagnostics: list[Diagnostic] = []
 
         for section in docstring.sections:
-            # UnknownSection does not have an underline_span
             if isinstance(section, UnknownSection):
                 continue
 
-            title = _section_title(section)
+            title = section.section_title
             expected_len = len(title)
 
             ul_span = section.underline_span
@@ -167,17 +108,14 @@ class D301:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         sections = target.docstring.sections
         if not sections:
             return ()
 
         # Collect canonical indices for sections that have a known position.
-        ordered: list[tuple[int, SectionNode]] = []
+        ordered: list[tuple[int, object]] = []
         for section in sections:
-            idx = _canonical_order(section)
+            idx = section.canonical_position
             if idx is not None:
                 ordered.append((idx, section))
 
@@ -186,7 +124,7 @@ class D301:
         prev_idx = -1
         for idx, section in ordered:
             if idx < prev_idx:
-                title = _section_title(section)
+                title = section.section_title
                 diagnostics.append(
                     Diagnostic(
                         code="D301",
@@ -243,7 +181,7 @@ def _signature_param_names(target: LintTarget) -> frozenset[str]:
 
 def _constructor_param_names(target: LintTarget) -> frozenset[str]:
     """Return parameter names from the related constructor snapshot."""
-    constructor = target.related.get("constructor")
+    constructor = target.related.constructor
     if constructor is None or constructor.signature is None:
         return frozenset()
     return frozenset(
@@ -269,9 +207,6 @@ class D302:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         sig_names = _signature_param_names(target)
         if target.kind is TargetKind.CLASS:
             sig_names = sig_names | _constructor_param_names(target)
@@ -316,9 +251,6 @@ class D303:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         sig_names = _signature_param_names(target)
         if target.kind is TargetKind.CLASS:
             sig_names = sig_names | _constructor_param_names(target)
@@ -363,9 +295,6 @@ class D304:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         deprecation = target.docstring.deprecation
         if deprecation is None:
             return ()
@@ -419,36 +348,10 @@ class D304:
 # D305 — RST directive used where a NumPy section exists
 # ---------------------------------------------------------------------------
 
-_RST_DIRECTIVE_PATTERN = re.compile(
-    r"^\s*\.\.\s+"
-    r"(note|warning|seealso|see-also|admonition|attention|caution|danger|error|hint|important|tip)"
-    r"\s*::",
-    re.IGNORECASE,
-)
-
-
-def _section_body_lines(section: SectionNode) -> tuple[str, ...]:
-    """Return body/prose lines from any section type."""
-    if isinstance(section, TypedSection):
-        lines: list[str] = []
-        for entry in section.entries:
-            lines.extend(entry.description_lines)
-        return tuple(lines)
-    if isinstance(section, ProseSection):
-        return section.body_lines
-    if isinstance(section, InventorySection):
-        lines = []
-        for item in section.items:
-            lines.extend(item.description_lines)
-        return tuple(lines)
-    if isinstance(section, SeeAlsoSection):
-        lines = []
-        for item in section.items:
-            lines.extend(item.description_lines)
-        return tuple(lines)
-    if isinstance(section, UnknownSection):
-        return section.body_lines
-    return ()  # pragma: no cover
+_D305_DIRECTIVES = frozenset({
+    "note", "warning", "seealso", "see-also", "admonition",
+    "attention", "caution", "danger", "error", "hint", "important", "tip",
+})
 
 
 class D305:
@@ -467,36 +370,28 @@ class D305:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
+        all_lines: list[str] = list(target.docstring.extended_description_lines)
+        for section in target.docstring.sections:
+            all_lines.extend(section.body_text_lines)
+
+        found = scan_rst_directives(tuple(all_lines), _D305_DIRECTIVES)
+        if not found:
             return ()
 
-        diagnostics: list[Diagnostic] = []
-
-        def _check_lines(lines: tuple[str, ...]) -> None:
-            for line in lines:
-                if _RST_DIRECTIVE_PATTERN.match(line):
-                    diagnostics.append(
-                        Diagnostic(
-                            code="D305",
-                            message=(
-                                "RST directive found where a NumPy section should be used: "
-                                f"{line.strip()!r}"
-                            ),
-                            severity=context.policy.severity,
-                            target=target.ref,
-                            span=None,
-                            fix=None,
-                        )
-                    )
-
-        # Check extended description
-        _check_lines(target.docstring.extended_description_lines)
-
-        # Check each section's body
-        for section in target.docstring.sections:
-            _check_lines(_section_body_lines(section))
-
-        return tuple(diagnostics)
+        return tuple(
+            Diagnostic(
+                code="D305",
+                message=(
+                    f"RST directive found where a NumPy section should be used: "
+                    f"'.. {directive}::'"
+                ),
+                severity=context.policy.severity,
+                target=target.ref,
+                span=None,
+                fix=None,
+            )
+            for directive in found
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -520,9 +415,6 @@ class D306:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         # Check whether this module is an API entry point.
         source_id = target.ref.source_id
         for pattern in context.policy.options.get("api_entry_modules", ()):

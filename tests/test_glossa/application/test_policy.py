@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.application.contracts import (
+from glossa.application.configuration import (
     FixApplyMode,
     FixPolicy,
     GlossaConfig,
     OutputFormat,
     OutputOptions,
     RuleSelection,
-    Severity,
     SuppressionPolicy,
 )
+from glossa.core.contracts import Severity
 from glossa.application.policy import (
     is_rule_suppressed,
     matches_pattern,

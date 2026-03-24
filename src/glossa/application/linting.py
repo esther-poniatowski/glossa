@@ -17,6 +17,7 @@ from glossa.core.contracts import (
     ExtractedTarget,
     LintTarget,
     RelatedTargetSnapshot,
+    ResolvedRelatedTargets,
 )
 from glossa.domain.models import ParsedDocstring
 from glossa.domain.parsing import parse_docstring
@@ -71,8 +72,8 @@ def analyze_file(
 
     for extracted in extracted_targets:
         _, parsed_docstring = parsed_map[extracted.ref.symbol_path]
-        related_map = _build_related_map(extracted, parsed_map)
-        lint_target = assemble_lint_target(extracted, parsed_docstring, related_map)
+        related = _build_related_targets(extracted, parsed_map)
+        lint_target = assemble_lint_target(extracted, parsed_docstring, related)
         inline_suppressions = _resolve_inline_suppressions(
             extracted,
             directive_prefix=config.suppressions.directive_prefix,
@@ -80,7 +81,12 @@ def analyze_file(
 
         diagnostics: list[Diagnostic] = []
         for rule in all_rules:
-            if lint_target.kind not in rule.metadata.applies_to:
+            meta = rule.metadata
+            if lint_target.kind not in meta.applies_to:
+                continue
+            if meta.requires_docstring and lint_target.docstring is None:
+                continue
+            if meta.requires_signature and lint_target.signature is None:
                 continue
 
             policy = resolve_rule_policy(
@@ -133,7 +139,7 @@ def lint_file(
 def assemble_lint_target(
     extracted: ExtractedTarget,
     parsed: ParsedDocstring | None,
-    related_map: dict[str, RelatedTargetSnapshot],
+    related: ResolvedRelatedTargets,
 ) -> LintTarget:
     """Map an extracted target into the pure lint target used by rules."""
     return LintTarget(
@@ -149,7 +155,7 @@ def assemble_lint_target(
         attributes=extracted.attributes,
         module_symbols=extracted.module_symbols,
         decorators=extracted.decorators,
-        related=related_map,
+        related=related,
     )
 
 
@@ -176,31 +182,31 @@ def _resolve_inline_suppressions(
     return tuple(suppressions)
 
 
-def _build_related_map(
-    extracted: ExtractedTarget,
+def _resolve_snapshot(
+    ref,
     parsed_map: dict[tuple[str, ...], tuple[ExtractedTarget, ParsedDocstring | None]],
-) -> dict[str, RelatedTargetSnapshot]:
-    related_map: dict[str, RelatedTargetSnapshot] = {}
-
-    ref_pairs = (
-        ("constructor", extracted.related.constructor),
-        ("parent", extracted.related.parent),
-        ("property_getter", extracted.related.property_getter),
+) -> RelatedTargetSnapshot | None:
+    if ref is None:
+        return None
+    entry = parsed_map.get(ref.symbol_path)
+    if entry is None:
+        return None
+    related_extracted, related_parsed = entry
+    return RelatedTargetSnapshot(
+        ref=related_extracted.ref,
+        kind=related_extracted.kind,
+        docstring=related_parsed,
+        raw_docstring=related_extracted.docstring,
+        signature=related_extracted.signature,
     )
 
-    for key, ref in ref_pairs:
-        if ref is None:
-            continue
-        entry = parsed_map.get(ref.symbol_path)
-        if entry is None:
-            continue
-        related_extracted, related_parsed = entry
-        related_map[key] = RelatedTargetSnapshot(
-            ref=related_extracted.ref,
-            kind=related_extracted.kind,
-            docstring=related_parsed,
-            raw_docstring=related_extracted.docstring,
-            signature=related_extracted.signature,
-        )
 
-    return related_map
+def _build_related_targets(
+    extracted: ExtractedTarget,
+    parsed_map: dict[tuple[str, ...], tuple[ExtractedTarget, ParsedDocstring | None]],
+) -> ResolvedRelatedTargets:
+    return ResolvedRelatedTargets(
+        constructor=_resolve_snapshot(extracted.related.constructor, parsed_map),
+        parent=_resolve_snapshot(extracted.related.parent, parsed_map),
+        property_getter=_resolve_snapshot(extracted.related.property_getter, parsed_map),
+    )

@@ -28,6 +28,7 @@ class OperationalIssue:
 class LintRunResult:
     files: tuple[AnalyzedFile, ...]
     operational_issues: tuple[OperationalIssue, ...]
+    effective_config: GlossaConfig
 
     @property
     def diagnostics(self) -> tuple[Diagnostic, ...]:
@@ -186,6 +187,7 @@ class GlossaService:
             return LintRunResult(
                 files=(),
                 operational_issues=(OperationalIssue(source_id=None, message=str(exc)),),
+                effective_config=config,
             )
 
         analyzed_files: list[AnalyzedFile] = []
@@ -209,4 +211,5 @@ class GlossaService:
         return LintRunResult(
             files=tuple(analyzed_files),
             operational_issues=tuple(issues),
+            effective_config=config,
         )

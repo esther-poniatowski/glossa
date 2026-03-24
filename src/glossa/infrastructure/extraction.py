@@ -227,13 +227,14 @@ def _extract_signature(
 
 
 def _walk_body_nodes(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    node: ast.AST,
 ) -> Iterator[ast.AST]:
-    """Yield AST nodes from *node*, skipping nested function/class bodies."""
-    for child in ast.walk(node):
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child is not node:
+    """Yield AST nodes from *node*, pruning nested function/class subtrees."""
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             continue
         yield child
+        yield from _walk_body_nodes(child)
 
 
 def _has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:

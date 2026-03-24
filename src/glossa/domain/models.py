@@ -68,6 +68,23 @@ class TypedEntry:
     span: DocstringSpan
 
 
+# Canonical NumPy section ordering — shared by all consumers.
+_CANONICAL_POSITIONS: dict[object, int] = {
+    TypedSectionKind.PARAMETERS: 0,
+    TypedSectionKind.RETURNS: 1,
+    TypedSectionKind.YIELDS: 2,
+    TypedSectionKind.RAISES: 3,
+    TypedSectionKind.WARNS: 4,
+    TypedSectionKind.ATTRIBUTES: 5,
+    ProseSectionKind.NOTES: 6,
+    ProseSectionKind.WARNINGS: 7,
+    "SeeAlso": 8,
+    ProseSectionKind.EXAMPLES: 9,
+    InventorySectionKind.CLASSES: 10,
+    InventorySectionKind.FUNCTIONS: 11,
+}
+
+
 @dataclass(frozen=True)
 class TypedSection:
     kind: TypedSectionKind
@@ -75,6 +92,21 @@ class TypedSection:
     underline_span: DocstringSpan
     entries: tuple[TypedEntry, ...]
     span: DocstringSpan
+
+    @property
+    def section_title(self) -> str:
+        return self.kind.value
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]:
+        lines: list[str] = []
+        for entry in self.entries:
+            lines.extend(entry.description_lines)
+        return tuple(lines)
+
+    @property
+    def canonical_position(self) -> int | None:
+        return _CANONICAL_POSITIONS.get(self.kind)
 
 
 @dataclass(frozen=True)
@@ -84,6 +116,18 @@ class ProseSection:
     underline_span: DocstringSpan
     body_lines: tuple[str, ...]
     span: DocstringSpan
+
+    @property
+    def section_title(self) -> str:
+        return self.kind.value
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]:
+        return self.body_lines
+
+    @property
+    def canonical_position(self) -> int | None:
+        return _CANONICAL_POSITIONS.get(self.kind)
 
 
 @dataclass(frozen=True)
@@ -101,6 +145,21 @@ class InventorySection:
     items: tuple[InventoryItem, ...]
     span: DocstringSpan
 
+    @property
+    def section_title(self) -> str:
+        return self.kind.value
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]:
+        lines: list[str] = []
+        for item in self.items:
+            lines.extend(item.description_lines)
+        return tuple(lines)
+
+    @property
+    def canonical_position(self) -> int | None:
+        return _CANONICAL_POSITIONS.get(self.kind)
+
 
 @dataclass(frozen=True)
 class SeeAlsoItem:
@@ -116,6 +175,21 @@ class SeeAlsoSection:
     items: tuple[SeeAlsoItem, ...]
     span: DocstringSpan
 
+    @property
+    def section_title(self) -> str:
+        return "See Also"
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]:
+        lines: list[str] = []
+        for item in self.items:
+            lines.extend(item.description_lines)
+        return tuple(lines)
+
+    @property
+    def canonical_position(self) -> int | None:
+        return _CANONICAL_POSITIONS.get("SeeAlso")
+
 
 @dataclass(frozen=True)
 class DeprecationDirective:
@@ -129,6 +203,18 @@ class UnknownSection:
     title: str
     body_lines: tuple[str, ...]
     span: DocstringSpan
+
+    @property
+    def section_title(self) -> str:
+        return self.title
+
+    @property
+    def body_text_lines(self) -> tuple[str, ...]:
+        return self.body_lines
+
+    @property
+    def canonical_position(self) -> int | None:
+        return None
 
 
 @dataclass(frozen=True)

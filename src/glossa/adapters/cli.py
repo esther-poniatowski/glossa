@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from glossa import __version__
-from glossa.application.configuration import OutputFormat, config_with_overrides
+from glossa.application.configuration import OutputFormat
 
 app = typer.Typer(
     name="glossa",
@@ -88,13 +88,7 @@ def lint(
         color=False if no_color else None,
     )
     all_diagnostics = result.diagnostics
-    effective_config = config_with_overrides(
-        service.config,
-        select=_codes(select),
-        ignore=_codes(ignore),
-        output_format=format_override,
-        color=False if no_color else None,
-    )
+    effective_config = result.effective_config
 
     # Format output
     if effective_config.output.format is OutputFormat.JSON:

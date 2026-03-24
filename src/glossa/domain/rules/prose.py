@@ -14,13 +14,7 @@ from glossa.core.contracts import (
     Severity,
     TargetKind,
 )
-from glossa.domain.models import (
-    InventorySection,
-    ProseSection,
-    SeeAlsoSection,
-    TypedSection,
-    UnknownSection,
-)
+from glossa.domain.models import ProseSection
 
 
 # ---------------------------------------------------------------------------
@@ -107,10 +101,6 @@ class D200:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.kind not in self.metadata.applies_to:
-            return ()
-        if target.docstring is None:
-            return ()
         summary = target.docstring.summary
         if summary is None:
             return ()
@@ -154,8 +144,6 @@ class D201:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
         summary = target.docstring.summary
         if summary is None:
             return ()
@@ -238,9 +226,6 @@ class D202:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         parsed = target.docstring
         summary = parsed.summary
 
@@ -289,17 +274,7 @@ def _collect_all_text(target: LintTarget) -> str:
     parts.extend(parsed.extended_description_lines)
 
     for section in parsed.sections:
-        if isinstance(section, TypedSection):
-            for entry in section.entries:
-                parts.extend(entry.description_lines)
-        elif isinstance(section, (ProseSection, UnknownSection)):
-            parts.extend(section.body_lines)
-        elif isinstance(section, InventorySection):
-            for item in section.items:
-                parts.extend(item.description_lines)
-        elif isinstance(section, SeeAlsoSection):
-            for item in section.items:
-                parts.extend(item.description_lines)
+        parts.extend(section.body_text_lines)
 
     return "\n".join(parts)
 
@@ -320,9 +295,6 @@ class D203:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         text = _collect_all_text(target)
         # "I" is matched case-sensitively (uppercase only); others are matched
         # case-insensitively via the pattern itself ("my", "me", "we", etc. are
@@ -369,9 +341,6 @@ class D204:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         text = _collect_all_text(target)
         match = _SECOND_PERSON_RE.search(text)
         if match is None:
@@ -434,9 +403,6 @@ class D205:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
-        if target.docstring is None:
-            return ()
-
         # Use the full raw body so headings at the start of lines are detected
         # correctly (the multiline flag in _MD_HEADING_RE needs real newlines).
         raw_body = target.docstring.syntax.raw_body

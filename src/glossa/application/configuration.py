@@ -19,26 +19,38 @@ DEFAULT_TRIVIAL_DUNDER_ALLOWLIST = (
     "__str__",
 )
 
-# Default option values per rule code.  resolve_rule_options merges user
-# config on top of these defaults so that rules always see a complete set.
-_RULE_OPTION_DEFAULTS: dict[str, dict[str, object]] = {
-    "D102": {
-        "include_test_functions": False,
-        "include_private_helpers": False,
-    },
-    "D104": {
-        "simple_property_requires_returns": True,
-    },
-    "D108": {
-        "inventory_threshold": 2,
-    },
-    "D306": {
-        "api_entry_modules": (),
-    },
-    "D501": {
-        "trivial_dunder_allowlist": DEFAULT_TRIVIAL_DUNDER_ALLOWLIST,
-    },
+@dataclass(frozen=True)
+class RuleOptionDescriptor:
+    key: str
+    default: object
+    validator: object  # Callable[[object, str], object]
+
+
+# Single source of truth for built-in rule options: key, default, validator.
+_RULE_OPTION_SCHEMA: dict[str, tuple[RuleOptionDescriptor, ...]] = {
+    "D102": (
+        RuleOptionDescriptor("include_test_functions", False, lambda v, p: _bool(v, p)),
+        RuleOptionDescriptor("include_private_helpers", False, lambda v, p: _bool(v, p)),
+    ),
+    "D104": (
+        RuleOptionDescriptor("simple_property_requires_returns", True, lambda v, p: _bool(v, p)),
+    ),
+    "D108": (
+        RuleOptionDescriptor("inventory_threshold", 2, lambda v, p: _positive_int(v, p)),
+    ),
+    "D306": (
+        RuleOptionDescriptor("api_entry_modules", (), lambda v, p: _string_tuple(v, p)),
+    ),
+    "D501": (
+        RuleOptionDescriptor("trivial_dunder_allowlist", DEFAULT_TRIVIAL_DUNDER_ALLOWLIST, lambda v, p: _string_tuple(v, p)),
+    ),
 }
+
+
+def _rule_option_defaults(rule_code: str) -> dict[str, object]:
+    """Derive defaults from the schema for a given rule code."""
+    descriptors = _RULE_OPTION_SCHEMA.get(rule_code, ())
+    return {d.key: d.default for d in descriptors}
 
 class OutputFormat(Enum):
     TEXT = "text"
@@ -208,44 +220,21 @@ def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> dict[str
     set.  Unknown keys for built-in rules raise ``ConfigurationError``;
     unknown keys for plugin rules are passed through.
     """
-    validators: dict[str, dict[str, object]] = {
-        "D102": {
-            "include_test_functions": lambda v: _bool(v, "include_test_functions"),
-            "include_private_helpers": lambda v: _bool(v, "include_private_helpers"),
-        },
-        "D104": {
-            "simple_property_requires_returns": lambda v: _bool(
-                v, "simple_property_requires_returns"
-            ),
-        },
-        "D108": {
-            "inventory_threshold": lambda v: _positive_int(v, "inventory_threshold"),
-        },
-        "D306": {
-            "api_entry_modules": lambda v: _string_tuple(v, "api_entry_modules"),
-        },
-        "D501": {
-            "trivial_dunder_allowlist": lambda v: _string_tuple(
-                v, "trivial_dunder_allowlist"
-            ),
-        },
-    }
-
-    rule_validators = validators.get(rule_code, {})
-    defaults = dict(_RULE_OPTION_DEFAULTS.get(rule_code, {}))
-    result: dict[str, object] = dict(defaults)
+    descriptors = _RULE_OPTION_SCHEMA.get(rule_code)
+    is_builtin = descriptors is not None
+    schema_map = {d.key: d for d in descriptors} if descriptors else {}
+    result: dict[str, object] = _rule_option_defaults(rule_code)
 
     for key, value in raw.items():
-        validator = rule_validators.get(key)
-        if validator is None:
-            if rule_validators:
+        descriptor = schema_map.get(key)
+        if descriptor is None:
+            if is_builtin:
                 raise ConfigurationError(
                     f"Unknown option {key!r} for built-in rule {rule_code!r}"
                 )
-            # Plugin rule — pass through unvalidated.
             result[key] = value
             continue
-        result[key] = validator(value)  # type: ignore[operator]
+        result[key] = descriptor.validator(value, key)  # type: ignore[operator]
 
     return result
 

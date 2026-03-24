@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.application.contracts import TargetKind, Visibility
+from glossa.core.contracts import TargetKind, Visibility
 from glossa.infrastructure.extraction import ASTExtractor
 
 

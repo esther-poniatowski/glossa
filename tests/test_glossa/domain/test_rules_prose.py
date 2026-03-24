@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from glossa.application.contracts import (
+from glossa.core.contracts import (
     AttributeFact,
     ExceptionFact,
     LintTarget,
     ModuleSymbolFact,
+    ResolvedRelatedTargets,
     Severity,
     SignatureFacts,
     SourceRef,
@@ -45,7 +46,7 @@ def make_target(
     attributes: tuple[AttributeFact, ...] = (),
     module_symbols: tuple[ModuleSymbolFact, ...] = (),
     decorators: tuple[str, ...] = (),
-    related: dict | None = None,
+    related: ResolvedRelatedTargets | None = None,
 ) -> LintTarget:
     """Build a LintTarget with sensible defaults."""
     ref = SourceRef(source_id="mymodule.py", symbol_path=("mymodule",))
@@ -62,7 +63,7 @@ def make_target(
         attributes=attributes,
         module_symbols=module_symbols,
         decorators=decorators,
-        related=related if related is not None else {},
+        related=related if related is not None else ResolvedRelatedTargets(),
     )
 
 
@@ -110,18 +111,6 @@ def test_d200_non_imperative_gerund():
     assert diagnostics[0].code == "D200"
 
 
-def test_d200_no_docstring_no_fire():
-    """No docstring means D200 should not fire."""
-    target = make_target(docstring=None)
-    diagnostics = D200().evaluate(target, make_context())
-    assert diagnostics == ()
-
-
-def test_d200_property_kind_skipped():
-    """D200 does not apply to PROPERTY targets."""
-    target = make_target(kind=TargetKind.PROPERTY, docstring=parsed("Returns the value."))
-    diagnostics = D200().evaluate(target, make_context())
-    assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
@@ -155,12 +144,6 @@ def test_d201_fix_plan():
     assert len(diag.fix.edits) == 1
     assert "Do something." in diag.fix.edits[0].text
 
-
-def test_d201_no_docstring_no_fire():
-    """No docstring means D201 should not fire."""
-    target = make_target(docstring=None)
-    diagnostics = D201().evaluate(target, make_context())
-    assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
@@ -204,12 +187,6 @@ def test_d202_summary_only_no_fire():
     assert diagnostics == ()
 
 
-def test_d202_no_docstring_no_fire():
-    """No docstring means D202 should not fire."""
-    target = make_target(docstring=None)
-    diagnostics = D202().evaluate(target, make_context())
-    assert diagnostics == ()
-
 
 # ---------------------------------------------------------------------------
 # D203 — First-person voice
@@ -239,11 +216,6 @@ def test_d203_my_fires():
     assert diagnostics[0].code == "D203"
 
 
-def test_d203_no_docstring_no_fire():
-    target = make_target(docstring=None)
-    diagnostics = D203().evaluate(target, make_context())
-    assert diagnostics == ()
-
 
 # ---------------------------------------------------------------------------
 # D204 — Second-person voice
@@ -272,11 +244,6 @@ def test_d204_third_person_no_fire():
     diagnostics = D204().evaluate(target, make_context())
     assert diagnostics == ()
 
-
-def test_d204_no_docstring_no_fire():
-    target = make_target(docstring=None)
-    diagnostics = D204().evaluate(target, make_context())
-    assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +292,3 @@ def test_d205_rst_is_fine():
     assert diagnostics == ()
 
 
-def test_d205_no_docstring_no_fire():
-    target = make_target(docstring=None)
-    diagnostics = D205().evaluate(target, make_context())
-    assert diagnostics == ()
