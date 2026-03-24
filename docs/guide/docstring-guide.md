@@ -19,7 +19,7 @@ Use **imperative mood** for summary lines:
 - "Compute the loss function." (not "Computes the loss function.")
 - "Load parameters from a YAML file." (not "Loads parameters...")
 
-This follows PEP 257 and is consistent with the numpydoc standard.
+The imperative mood follows PEP 257 and the numpydoc standard.
 
 Use **impersonal voice** throughout. Avoid first person ("we compute...") and
 second person ("you can..."). Write "The function computes..." or simply

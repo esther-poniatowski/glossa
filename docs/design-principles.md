@@ -29,7 +29,7 @@ interfaces that govern its own use.
 
 ### 2.2 Single Composition Root
 
-There is exactly one composition root, in the adapter layer. It is responsible for:
+There is exactly one composition root, in the adapter layer. The root handles:
 
 - constructing infrastructure implementations
 - loading plugins
@@ -40,7 +40,7 @@ No other module may perform global wiring as import-time side effects.
 
 ### 2.3 Protocol Ownership
 
-All effectful capabilities are modeled as application-defined protocols. This includes:
+All effectful capabilities are modeled as application-defined protocols, including:
 
 - source discovery
 - source reading and writing

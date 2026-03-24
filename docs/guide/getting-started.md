@@ -36,6 +36,6 @@ glossa --help
 
 ## Next Steps
 
-- [Configuration](configuration.md) -- Configure the package for your workflow.
+- [Configuration](configuration.md) -- Configure the package.
 - [CLI Reference](cli-reference.md) -- Full list of commands and options.
 - [API Reference](../api/index.md) -- Python API documentation.

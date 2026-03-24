@@ -3,14 +3,14 @@
 Architecture and implementation plan for glossa, a Python docstring linter and
 auto-fixer for NumPy-style docstrings.
 
-This document is normative for the implementation. It supersedes the earlier draft
+This document is normative for the implementation, supersedes the earlier draft,
 and resolves the structural issues identified in the adversarial design review.
 
 ## 1. Scope
 
 Glossa statically analyzes Python source files and reports docstring violations
 against the conventions defined in the [Docstring Guide](guide/docstring-guide.md).
-It operates in two modes:
+Glossa operates in two modes:
 
 - **Lint**: report diagnostics.
 - **Fix**: apply safe automatic corrections where a deterministic edit exists.
