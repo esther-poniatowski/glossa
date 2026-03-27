@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from glossa.application.configuration import (
+    DEFAULT_SECTION_ORDER,
     FixApplyMode,
     FixPolicy,
     GlossaConfig,
@@ -25,6 +26,7 @@ def _config(*select: str) -> GlossaConfig:
             severity_overrides={},
             per_file_ignores={},
             rule_options={},
+            section_order=DEFAULT_SECTION_ORDER,
         ),
         suppressions=SuppressionPolicy(
             inline_enabled=True,

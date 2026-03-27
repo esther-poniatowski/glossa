@@ -5,13 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from glossa.application.configuration import FixApplyMode, GlossaConfig
-from glossa.application.linting import AnalyzedFile, analyze_file
-from glossa.application.protocols import ExtractionPort, FilePort
-from glossa.application.registry import RuleRegistry
+from glossa.application.configuration import GlossaConfig
+from glossa.application.linting import AnalyzedFile, AnalyzedTarget
 from glossa.application.contracts import EditKind, FixPlan, SourceRef
 from glossa.domain.fixes import intervals_overlap
-from glossa.errors import GlossaError
 
 
 class FixRejectionReason(Enum):
@@ -25,6 +22,16 @@ class FixRejection:
     plan: FixPlan
     reason: FixRejectionReason
     details: str
+
+
+@dataclass(frozen=True)
+class FixTransformation:
+    """Pure fix computation result: edited source and plan bookkeeping, no I/O."""
+
+    source_id: str
+    accepted: tuple[FixPlan, ...]
+    rejected: tuple[FixRejection, ...]
+    edited_source: str
 
 
 @dataclass(frozen=True)
@@ -52,13 +59,10 @@ class _ResolvedFixPlan:
 
 def apply_fixes(
     analyzed_files: tuple[AnalyzedFile, ...],
-    file_port: FilePort,
     config: GlossaConfig,
-    extraction_port: ExtractionPort,
-    registry: RuleRegistry,
-) -> tuple[FixResult, ...]:
-    """Apply validated source-level fixes for analyzed files."""
-    results: list[FixResult] = []
+) -> tuple[FixTransformation, ...]:
+    """Compute source-level fixes for analyzed files without applying or validating them."""
+    results: list[FixTransformation] = []
 
     for analyzed_file in analyzed_files:
         fix_plans = [
@@ -74,7 +78,7 @@ def apply_fixes(
         rejected: list[FixRejection] = []
         for plan in fix_plans:
             analyzed_target = _find_target(analyzed_file, plan.target)
-            if analyzed_target is None or analyzed_target.extracted.docstring is None:
+            if analyzed_target is None or analyzed_target.lint_target.raw_docstring is None:
                 rejected.append(
                     FixRejection(
                         plan=plan,
@@ -87,7 +91,7 @@ def apply_fixes(
                 resolved.append(
                     _resolve_fix_plan(
                         analyzed_file.source_text,
-                        analyzed_target.extracted.docstring,
+                        analyzed_target.lint_target.raw_docstring,
                         plan,
                     )
                 )
@@ -105,11 +109,11 @@ def apply_fixes(
 
         if not accepted:
             results.append(
-                FixResult(
+                FixTransformation(
                     source_id=analyzed_file.source_id,
-                    applied=(),
+                    accepted=(),
                     rejected=tuple(rejected),
-                    validation_passed=True,
+                    edited_source=analyzed_file.source_text,
                 )
             )
             continue
@@ -118,50 +122,26 @@ def apply_fixes(
             analyzed_file.source_text,
             tuple(
                 source_edit
-                for plan in accepted
-                for source_edit in plan.edits
+                for rplan in accepted
+                for source_edit in rplan.edits
             ),
         )
 
-        validation_passed, validation_message = _validate_edited_source(
-            original=analyzed_file,
-            edited_source=edited_source,
-            config=config,
-            extraction_port=extraction_port,
-            registry=registry,
-            accepted=accepted,
-        )
-
-        applied: tuple[FixPlan, ...] = ()
-        if validation_passed:
-            applied = tuple(plan.plan for plan in accepted)
-            if config.fix.apply is not FixApplyMode.NEVER:
-                file_port.write(analyzed_file.source_id, edited_source)
-        else:
-            for plan in accepted:
-                rejected.append(
-                    FixRejection(
-                        plan=plan.plan,
-                        reason=FixRejectionReason.VALIDATION_FAILED,
-                        details=validation_message,
-                    )
-                )
-
         results.append(
-            FixResult(
+            FixTransformation(
                 source_id=analyzed_file.source_id,
-                applied=applied,
+                accepted=tuple(rplan.plan for rplan in accepted),
                 rejected=tuple(rejected),
-                validation_passed=validation_passed,
+                edited_source=edited_source,
             )
         )
 
     return tuple(results)
 
 
-def _find_target(analyzed_file: AnalyzedFile, target_ref: SourceRef):
+def _find_target(analyzed_file: AnalyzedFile, target_ref: SourceRef) -> AnalyzedTarget | None:
     for target in analyzed_file.targets:
-        if target.extracted.ref == target_ref:
+        if target.lint_target.ref == target_ref:
             return target
     return None
 
@@ -243,44 +223,6 @@ def _apply_source_edits(source_text: str, edits: tuple[_SourceEdit, ...]) -> str
             result = result[: edit.start_offset] + edit.text + result[edit.start_offset :]
     return result
 
-
-def _validate_edited_source(
-    *,
-    original: AnalyzedFile,
-    edited_source: str,
-    config: GlossaConfig,
-    extraction_port: ExtractionPort,
-    registry: RuleRegistry,
-    accepted: tuple[_ResolvedFixPlan, ...],
-) -> tuple[bool, str]:
-    if not config.fix.validate_after_apply:
-        return True, ""
-
-    try:
-        reanalyzed = analyze_file(
-            source_id=original.source_id,
-            source_text=edited_source,
-            extraction_port=extraction_port,
-            config=config,
-            registry=registry,
-        )
-    except GlossaError as exc:
-        return False, f"Edited source no longer analyzes cleanly: {exc}"
-
-    remaining = {
-        (diagnostic.target.symbol_path, diagnostic.code)
-        for diagnostic in reanalyzed.diagnostics
-    }
-
-    for plan in accepted:
-        for rule_code in plan.plan.affected_rules:
-            if (plan.target.symbol_path, rule_code) in remaining:
-                return (
-                    False,
-                    f"Rule {rule_code} still fires for {'.'.join(plan.target.symbol_path) or '<module>'}.",
-                )
-
-    return True, ""
 
 
 def _line_offsets(source_text: str) -> list[int]:

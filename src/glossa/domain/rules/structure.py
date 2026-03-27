@@ -10,18 +10,21 @@ from glossa.application.contracts import (
     CALLABLE_AND_CLASS_KINDS,
     Diagnostic,
     LintTarget,
+    RuleOptionDescriptor,
     Severity,
     TargetKind,
 )
 from glossa.domain.models import (
     ProseSection,
     ProseSectionKind,
+    SectionNode,
     TypedSection,
     TypedSectionKind,
     UnderlinedSectionProtocol,
     UnknownSection,
 )
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._options import validate_string_tuple
 from glossa.domain.rules._parameters import documentable_param_names
 from glossa.domain.rules._scanning import scan_rst_directives
 
@@ -130,9 +133,11 @@ class D301:
         if not sections:
             return ()
 
-        ordered: list[tuple[int, object]] = []
+        section_order = {title: idx for idx, title in enumerate(context.section_order)}
+
+        ordered: list[tuple[int, SectionNode]] = []
         for section in sections:
-            idx = section.canonical_position
+            idx = section_order.get(section.section_title)
             if idx is not None:
                 ordered.append((idx, section))
 
@@ -140,11 +145,10 @@ class D301:
         prev_idx = -1
         for idx, section in ordered:
             if idx < prev_idx:
-                title = section.section_title
                 diagnostics.append(
                     make_diagnostic(
                         self, target, context,
-                        f"Section '{title}' appears out of canonical NumPy order",
+                        f"Section '{section.section_title}' appears out of canonical NumPy order",
                         span=section.span,
                     )
                 )
@@ -341,6 +345,9 @@ class D306:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.MODULE}),
         fixable=False,
+        option_schema=(
+            RuleOptionDescriptor("api_entry_modules", (), validate_string_tuple),
+        ),
     )
 
     def evaluate(
@@ -351,7 +358,8 @@ class D306:
         if target.docstring is None:
             return ()
         source_id = target.ref.source_id
-        for pattern in context.policy.options.get("api_entry_modules", ()):
+        entry_modules: tuple[str, ...] = context.policy.options.get("api_entry_modules", ())  # type: ignore[assignment]
+        for pattern in entry_modules:
             if fnmatch.fnmatch(source_id, pattern):
                 return ()
 

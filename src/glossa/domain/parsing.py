@@ -8,7 +8,8 @@ into the domain.
 from __future__ import annotations
 
 import re
-from typing import Literal
+from dataclasses import dataclass
+from typing import Callable, Literal, Sequence
 
 from glossa.domain.models import (
     DeprecationDirective,
@@ -81,6 +82,27 @@ _TYPED_ENTRY_RE = re.compile(
 # Pattern for return/yield entries (no name): ``type``
 _UNNAMED_ENTRY_RE = re.compile(r"^(?P<type>[^,]+?)(?:\s*,\s*(?P<default>.+))?\s*$")
 
+# ---------------------------------------------------------------------------
+# Section parse function type
+# ---------------------------------------------------------------------------
+
+SectionParseFunc = Callable[
+    [str, list[str], DocstringSpan, DocstringSpan, DocstringSpan, list[str], int],
+    SectionNode,
+]
+
+
+@dataclass(frozen=True)
+class SectionParser:
+    """Associates a set of section titles with a parse function.
+
+    To register a custom section type, construct a ``SectionParser`` and pass
+    it to ``parse_docstring`` via the ``extra_parsers`` argument.
+    """
+
+    titles: frozenset[str]
+    parse: SectionParseFunc
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -102,8 +124,6 @@ def _count_trailing_blank(lines: list[str]) -> int:
         if line.strip():
             break
         count += 1
-    # str.split("\n") on a string ending with "\n" produces a trailing ""
-    # that is not a real blank line — subtract it.
     if count > 0 and lines and lines[-1] == "":
         count = max(0, count - 1)
     return count
@@ -112,7 +132,7 @@ def _count_trailing_blank(lines: list[str]) -> int:
 def _offset_of_line(lines: list[str], idx: int) -> int:
     offset = 0
     for i in range(idx):
-        offset += len(lines[i]) + 1  # +1 for newline
+        offset += len(lines[i]) + 1
     return offset
 
 
@@ -125,7 +145,6 @@ def _span_of_lines(lines: list[str], start_idx: int, end_idx: int) -> DocstringS
 
 
 def _is_section_header(lines: list[str], idx: int) -> str | None:
-    """Return the section title if lines[idx] is a section header, else None."""
     if idx + 1 >= len(lines):
         return None
     title_line = lines[idx].strip()
@@ -148,22 +167,13 @@ def _dedent_body(lines: list[str], indent: int) -> tuple[str, ...]:
 
 
 # ---------------------------------------------------------------------------
-# Indent-based block grouping (shared by all section body parsers)
+# Indent-based block grouping
 # ---------------------------------------------------------------------------
 
 
 def _group_indented_blocks(
     body_lines: list[str],
 ) -> list[tuple[int, list[str]]]:
-    """Group *body_lines* into blocks using indent-level detection.
-
-    Each block starts at the base indent level (determined from the first
-    non-blank line) and includes all subsequent lines that are either blank
-    or indented beyond the base level.
-
-    Returns a list of ``(start_index, lines)`` tuples where *start_index*
-    is relative to *body_lines*.
-    """
     if not body_lines:
         return []
 
@@ -203,7 +213,6 @@ def _group_indented_blocks(
 
 
 def _trim_trailing_blanks(lines: tuple[str, ...]) -> tuple[str, ...]:
-    """Strip trailing empty strings from a tuple of lines."""
     while lines and not lines[-1].strip():
         lines = lines[:-1]
     return lines
@@ -313,7 +322,7 @@ def _parse_see_also_items(
         header = block_lines[0].strip()
         if " : " in header:
             name, _, desc = header.partition(" : ")
-            desc_lines = (desc.strip(),) + tuple(block_lines[1:])
+            desc_lines: tuple[str, ...] = (desc.strip(),) + tuple(block_lines[1:])
         else:
             name = header
             desc_lines = tuple(block_lines[1:]) if len(block_lines) > 1 else ()
@@ -328,6 +337,127 @@ def _parse_see_also_items(
         )
 
     return tuple(items)
+
+
+# ---------------------------------------------------------------------------
+# Concrete section parse functions
+# ---------------------------------------------------------------------------
+
+
+def _parse_typed_section(
+    title: str,
+    body_lines: list[str],
+    title_span: DocstringSpan,
+    underline_span: DocstringSpan,
+    section_span: DocstringSpan,
+    all_lines: list[str],
+    body_start: int,
+) -> TypedSection:
+    kind = _TYPED_SECTION_TITLES[title]
+    entries = _parse_typed_entries(body_lines, kind, all_lines, body_start)
+    return TypedSection(
+        kind=kind,
+        title_span=title_span,
+        underline_span=underline_span,
+        entries=entries,
+        span=section_span,
+    )
+
+
+def _parse_prose_section(
+    title: str,
+    body_lines: list[str],
+    title_span: DocstringSpan,
+    underline_span: DocstringSpan,
+    section_span: DocstringSpan,
+    all_lines: list[str],
+    body_start: int,
+) -> ProseSection:
+    kind = _PROSE_SECTION_TITLES[title]
+    return ProseSection(
+        kind=kind,
+        title_span=title_span,
+        underline_span=underline_span,
+        body_lines=tuple(line.rstrip() for line in body_lines),
+        span=section_span,
+    )
+
+
+def _parse_inventory_section(
+    title: str,
+    body_lines: list[str],
+    title_span: DocstringSpan,
+    underline_span: DocstringSpan,
+    section_span: DocstringSpan,
+    all_lines: list[str],
+    body_start: int,
+) -> InventorySection:
+    kind = _INVENTORY_SECTION_TITLES[title]
+    items = _parse_inventory_items(body_lines, all_lines, body_start)
+    return InventorySection(
+        kind=kind,
+        title_span=title_span,
+        underline_span=underline_span,
+        items=items,
+        span=section_span,
+    )
+
+
+def _parse_see_also_section(
+    title: str,
+    body_lines: list[str],
+    title_span: DocstringSpan,
+    underline_span: DocstringSpan,
+    section_span: DocstringSpan,
+    all_lines: list[str],
+    body_start: int,
+) -> SeeAlsoSection:
+    items = _parse_see_also_items(body_lines, all_lines, body_start)
+    return SeeAlsoSection(
+        title_span=title_span,
+        underline_span=underline_span,
+        items=items,
+        span=section_span,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Built-in section parser registry
+# ---------------------------------------------------------------------------
+
+_BUILTIN_SECTION_PARSERS: list[SectionParser] = [
+    SectionParser(
+        titles=frozenset(_TYPED_SECTION_TITLES.keys()),
+        parse=_parse_typed_section,
+    ),
+    SectionParser(
+        titles=frozenset(_PROSE_SECTION_TITLES.keys()),
+        parse=_parse_prose_section,
+    ),
+    SectionParser(
+        titles=frozenset(_INVENTORY_SECTION_TITLES.keys()),
+        parse=_parse_inventory_section,
+    ),
+    SectionParser(
+        titles=frozenset({_SEE_ALSO_TITLE}),
+        parse=_parse_see_also_section,
+    ),
+]
+
+
+def _build_dispatch(
+    extra_parsers: Sequence[SectionParser] | None,
+) -> dict[str, SectionParseFunc]:
+    """Return a title → parse-function dict from built-ins plus any extras."""
+    dispatch: dict[str, SectionParseFunc] = {}
+    for entry in _BUILTIN_SECTION_PARSERS:
+        for title in entry.titles:
+            dispatch[title] = entry.parse
+    if extra_parsers:
+        for entry in extra_parsers:
+            for title in entry.titles:
+                dispatch[title] = entry.parse
+    return dispatch
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +480,6 @@ def _try_parse_deprecation(
     idx = body_start
 
     if idx < len(lines):
-        # Find indent of body
         base_indent: int | None = None
         while idx < len(lines):
             line = lines[idx]
@@ -365,7 +494,6 @@ def _try_parse_deprecation(
                 body_lines.append("")
             idx += 1
 
-    # Trim trailing blanks
     while body_lines and not body_lines[-1].strip():
         body_lines.pop()
 
@@ -384,14 +512,13 @@ def _try_parse_deprecation(
 
 
 def _find_section_boundaries(lines: list[str]) -> list[tuple[int, str]]:
-    """Return (line_index, title) pairs for each detected section header."""
     sections: list[tuple[int, str]] = []
     idx = 0
     while idx < len(lines):
         title = _is_section_header(lines, idx)
         if title is not None:
             sections.append((idx, title))
-            idx += 2  # skip title + underline
+            idx += 2
         else:
             idx += 1
     return sections
@@ -407,6 +534,7 @@ def parse_docstring(
     quote: Literal['"""', "'''"],
     string_prefix: str,
     indentation: str,
+    extra_parsers: Sequence[SectionParser] | None = None,
 ) -> ParsedDocstring:
     """Parse a raw docstring body into a ``ParsedDocstring``.
 
@@ -420,12 +548,18 @@ def parse_docstring(
         Any string prefix (e.g. ``"r"``).
     indentation : str
         The indentation of the docstring within its source file.
+    extra_parsers : Sequence[SectionParser] | None, optional
+        Additional section parsers to recognise beyond the built-in NumPy
+        vocabulary.  Extra parsers take precedence over built-ins when their
+        title sets overlap.
 
     Returns
     -------
     ParsedDocstring
         The parsed docstring with syntax, summary, sections, and issues.
     """
+    dispatch = _build_dispatch(extra_parsers)
+
     if not body.strip():
         syntax = DocstringSyntax(
             raw_body=body,
@@ -459,7 +593,6 @@ def parse_docstring(
 
     issues: list[ParseIssue] = []
 
-    # --- Summary extraction ---
     summary: Summary | None = None
     content_start = leading_blank
     if content_start < len(lines) and lines[content_start].strip():
@@ -472,40 +605,31 @@ def parse_docstring(
             ParseIssue(code="P001", message="No summary line found", span=None)
         )
 
-    # Skip blank line after summary
     while content_start < len(lines) and not lines[content_start].strip():
         content_start += 1
 
-    # --- Deprecation directive ---
     deprecation: DeprecationDirective | None = None
     if content_start < len(lines):
         dep_result = _try_parse_deprecation(lines, content_start)
         if dep_result is not None:
             deprecation, content_start = dep_result
-            # Skip blank lines after deprecation
             while content_start < len(lines) and not lines[content_start].strip():
                 content_start += 1
 
-    # --- Detect section boundaries ---
     effective_end = len(lines) - trailing_blank if trailing_blank > 0 else len(lines)
     section_boundaries = _find_section_boundaries(lines[content_start:effective_end])
-    # Adjust indices to absolute
     section_boundaries = [
         (idx + content_start, title) for idx, title in section_boundaries
     ]
 
-    # --- Extended description (text before first section) ---
     ext_desc_end = section_boundaries[0][0] if section_boundaries else effective_end
     ext_desc_lines_raw = lines[content_start:ext_desc_end]
-    # Trim trailing blanks
     while ext_desc_lines_raw and not ext_desc_lines_raw[-1].strip():
         ext_desc_lines_raw.pop()
     extended_description_lines = tuple(line.rstrip() for line in ext_desc_lines_raw)
 
-    # --- Parse sections ---
     sections: list[SectionNode] = []
     for i, (sec_start, title) in enumerate(section_boundaries):
-        # Section body extends until next section or effective_end
         if i + 1 < len(section_boundaries):
             sec_end = section_boundaries[i + 1][0]
         else:
@@ -515,55 +639,14 @@ def parse_docstring(
         underline_span = _span_of_lines(lines, sec_start + 1, sec_start + 2)
         body_start = sec_start + 2
         body_lines = lines[body_start:sec_end]
-        # Trim trailing blanks from section body
         while body_lines and not body_lines[-1].strip():
             body_lines.pop()
         section_span = _span_of_lines(lines, sec_start, sec_end)
 
-        if title in _TYPED_SECTION_TITLES:
-            kind = _TYPED_SECTION_TITLES[title]
-            entries = _parse_typed_entries(body_lines, kind, lines, body_start)
+        parse_fn = dispatch.get(title)
+        if parse_fn is not None:
             sections.append(
-                TypedSection(
-                    kind=kind,
-                    title_span=title_span,
-                    underline_span=underline_span,
-                    entries=entries,
-                    span=section_span,
-                )
-            )
-        elif title in _PROSE_SECTION_TITLES:
-            prose_kind = _PROSE_SECTION_TITLES[title]
-            sections.append(
-                ProseSection(
-                    kind=prose_kind,
-                    title_span=title_span,
-                    underline_span=underline_span,
-                    body_lines=tuple(line.rstrip() for line in body_lines),
-                    span=section_span,
-                )
-            )
-        elif title in _INVENTORY_SECTION_TITLES:
-            inv_kind = _INVENTORY_SECTION_TITLES[title]
-            items = _parse_inventory_items(body_lines, lines, body_start)
-            sections.append(
-                InventorySection(
-                    kind=inv_kind,
-                    title_span=title_span,
-                    underline_span=underline_span,
-                    items=items,
-                    span=section_span,
-                )
-            )
-        elif title == _SEE_ALSO_TITLE:
-            items = _parse_see_also_items(body_lines, lines, body_start)
-            sections.append(
-                SeeAlsoSection(
-                    title_span=title_span,
-                    underline_span=underline_span,
-                    items=items,
-                    span=section_span,
-                )
+                parse_fn(title, body_lines, title_span, underline_span, section_span, lines, body_start)
             )
         else:
             sections.append(

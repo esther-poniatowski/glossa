@@ -26,7 +26,6 @@ from glossa.domain.rules import RuleContext
 
 @dataclass(frozen=True)
 class AnalyzedTarget:
-    extracted: ExtractedTarget
     lint_target: LintTarget
     diagnostics: tuple[Diagnostic, ...]
 
@@ -90,10 +89,9 @@ def analyze_file(
                 continue
 
             policy = resolve_rule_policy(
-                rule_code=rule.metadata.code,
+                rule_metadata=rule.metadata,
                 source_id=source_id,
                 config=config,
-                default_severity=rule.metadata.default_severity,
             )
             if not policy.enabled:
                 continue
@@ -102,11 +100,13 @@ def analyze_file(
             ):
                 continue
 
-            diagnostics.extend(rule.evaluate(lint_target, RuleContext(policy=policy)))
+            diagnostics.extend(rule.evaluate(
+                lint_target,
+                RuleContext(policy=policy, section_order=config.rules.section_order),
+            ))
 
         analyzed_targets.append(
             AnalyzedTarget(
-                extracted=extracted,
                 lint_target=lint_target,
                 diagnostics=tuple(diagnostics),
             )
@@ -126,18 +126,8 @@ def assemble_lint_target(
 ) -> LintTarget:
     """Map an extracted target into the pure lint target used by rules."""
     return LintTarget(
-        ref=extracted.ref,
-        kind=extracted.kind,
-        visibility=extracted.visibility,
-        is_test_target=extracted.is_test_target,
+        extracted=extracted,
         docstring=parsed,
-        raw_docstring=extracted.docstring,
-        signature=extracted.signature,
-        exceptions=extracted.exceptions,
-        warnings=extracted.warnings,
-        attributes=extracted.attributes,
-        module_symbols=extracted.module_symbols,
-        decorators=extracted.decorators,
         related=related,
     )
 
@@ -148,7 +138,7 @@ def find_analyzed_target(
 ) -> AnalyzedTarget | None:
     """Return the analyzed target for *symbol_path*, if present."""
     for target in analyzed_file.targets:
-        if target.extracted.ref.symbol_path == symbol_path:
+        if target.lint_target.ref.symbol_path == symbol_path:
             return target
     return None
 

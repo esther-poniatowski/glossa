@@ -68,25 +68,6 @@ class TypedEntry:
     span: DocstringSpan
 
 
-# Canonical NumPy section ordering — shared by all consumers.
-_SEE_ALSO_KEY = "SeeAlso"
-
-_CANONICAL_POSITIONS: dict[object, int] = {
-    TypedSectionKind.PARAMETERS: 0,
-    TypedSectionKind.RETURNS: 1,
-    TypedSectionKind.YIELDS: 2,
-    TypedSectionKind.RAISES: 3,
-    TypedSectionKind.WARNS: 4,
-    TypedSectionKind.ATTRIBUTES: 5,
-    ProseSectionKind.NOTES: 6,
-    ProseSectionKind.WARNINGS: 7,
-    _SEE_ALSO_KEY: 8,
-    ProseSectionKind.EXAMPLES: 9,
-    InventorySectionKind.CLASSES: 10,
-    InventorySectionKind.FUNCTIONS: 11,
-}
-
-
 @runtime_checkable
 class SectionProtocol(Protocol):
     """Shared interface for all docstring section types."""
@@ -96,9 +77,6 @@ class SectionProtocol(Protocol):
 
     @property
     def body_text_lines(self) -> tuple[str, ...]: ...
-
-    @property
-    def canonical_position(self) -> int | None: ...
 
     @property
     def span(self) -> DocstringSpan: ...
@@ -134,10 +112,6 @@ class TypedSection:
             lines.extend(entry.description_lines)
         return tuple(lines)
 
-    @property
-    def canonical_position(self) -> int | None:
-        return _CANONICAL_POSITIONS.get(self.kind)
-
 
 @dataclass(frozen=True)
 class ProseSection:
@@ -154,10 +128,6 @@ class ProseSection:
     @property
     def body_text_lines(self) -> tuple[str, ...]:
         return self.body_lines
-
-    @property
-    def canonical_position(self) -> int | None:
-        return _CANONICAL_POSITIONS.get(self.kind)
 
 
 @dataclass(frozen=True)
@@ -186,10 +156,6 @@ class InventorySection:
             lines.extend(item.description_lines)
         return tuple(lines)
 
-    @property
-    def canonical_position(self) -> int | None:
-        return _CANONICAL_POSITIONS.get(self.kind)
-
 
 @dataclass(frozen=True)
 class SeeAlsoItem:
@@ -216,10 +182,6 @@ class SeeAlsoSection:
             lines.extend(item.description_lines)
         return tuple(lines)
 
-    @property
-    def canonical_position(self) -> int | None:
-        return _CANONICAL_POSITIONS.get(_SEE_ALSO_KEY)
-
 
 @dataclass(frozen=True)
 class DeprecationDirective:
@@ -243,10 +205,6 @@ class UnknownSection:
     @property
     def body_text_lines(self) -> tuple[str, ...]:
         return self.body_lines
-
-    @property
-    def canonical_position(self) -> int | None:
-        return None
 
 
 @dataclass(frozen=True)
@@ -291,6 +249,13 @@ class ParsedDocstring:
     def see_also_section(self) -> SeeAlsoSection | None:
         for section in self.sections:
             if isinstance(section, SeeAlsoSection):
+                return section
+        return None
+
+    def section_by_title(self, title: str) -> SectionNode | None:
+        """Return the first section whose ``section_title`` equals *title*."""
+        for section in self.sections:
+            if section.section_title == title:
                 return section
         return None
 

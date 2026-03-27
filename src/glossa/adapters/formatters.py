@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from typing import Sequence
 
-from glossa.application.contracts import Diagnostic, TextSpan
-from glossa.domain.models import DocstringSpan
+from glossa.application.contracts import Diagnostic
 
 
 def format_text(
@@ -21,7 +20,7 @@ def format_text(
         symbol = ".".join(diag.target.symbol_path) if diag.target.symbol_path else ""
 
         location = source_id
-        if isinstance(diag.span, TextSpan):
+        if diag.span is not None:
             location += f":{diag.span.start.line}:{diag.span.start.column}"
 
         sev = diag.severity.value.upper()
@@ -42,24 +41,19 @@ def format_json(diagnostics: Sequence[Diagnostic]) -> str:
     """Format diagnostics as JSON."""
     items = []
     for diag in diagnostics:
-        item: dict = {
+        item: dict[str, object] = {
             "code": diag.code,
             "message": diag.message,
             "severity": diag.severity.value,
             "source_id": diag.target.source_id,
             "symbol_path": list(diag.target.symbol_path),
         }
-        if isinstance(diag.span, TextSpan):
+        if diag.span is not None:
             item["location"] = {
                 "start_line": diag.span.start.line,
                 "start_column": diag.span.start.column,
                 "end_line": diag.span.end.line,
                 "end_column": diag.span.end.column,
-            }
-        elif isinstance(diag.span, DocstringSpan):
-            item["location"] = {
-                "start_offset": diag.span.start_offset,
-                "end_offset": diag.span.end_offset,
             }
         item["fixable"] = diag.fix is not None
         items.append(item)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, Callable, Mapping
 
 from glossa.application.contracts.core import (
     Severity,
@@ -18,6 +18,7 @@ from glossa.application.contracts.extraction import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,
+    ExtractedTarget,
     ModuleSymbolFact,
     SignatureFacts,
     WarningFact,
@@ -25,6 +26,15 @@ from glossa.application.contracts.extraction import (
 
 if TYPE_CHECKING:
     from glossa.domain.models import DocstringSpan, ParsedDocstring
+
+
+@dataclass(frozen=True)
+class RuleOptionDescriptor:
+    """Declares one option that a rule accepts."""
+
+    key: str
+    default: object
+    validator: Callable[[object, str], object]
 
 
 @dataclass(frozen=True)
@@ -45,19 +55,61 @@ class ResolvedRelatedTargets:
 
 @dataclass(frozen=True)
 class LintTarget:
-    ref: SourceRef
-    kind: TargetKind
-    visibility: Visibility
-    is_test_target: bool
+    """Enriched target for rule evaluation.
+
+    Wraps an ``ExtractedTarget`` with a parsed docstring and resolved
+    related-target snapshots.  All fields from the underlying
+    ``ExtractedTarget`` are forwarded as read-only properties so that
+    existing rule code requires no changes.
+    """
+
+    extracted: ExtractedTarget
     docstring: ParsedDocstring | None
-    raw_docstring: ExtractedDocstring | None
-    signature: SignatureFacts | None
-    exceptions: tuple[ExceptionFact, ...]
-    warnings: tuple[WarningFact, ...]
-    attributes: tuple[AttributeFact, ...]
-    module_symbols: tuple[ModuleSymbolFact, ...]
-    decorators: tuple[str, ...]
     related: ResolvedRelatedTargets
+
+    @property
+    def ref(self) -> SourceRef:
+        return self.extracted.ref
+
+    @property
+    def kind(self) -> TargetKind:
+        return self.extracted.kind
+
+    @property
+    def visibility(self) -> Visibility:
+        return self.extracted.visibility
+
+    @property
+    def is_test_target(self) -> bool:
+        return self.extracted.is_test_target
+
+    @property
+    def raw_docstring(self) -> ExtractedDocstring | None:
+        return self.extracted.docstring
+
+    @property
+    def signature(self) -> SignatureFacts | None:
+        return self.extracted.signature
+
+    @property
+    def exceptions(self) -> tuple[ExceptionFact, ...]:
+        return self.extracted.exceptions
+
+    @property
+    def warnings(self) -> tuple[WarningFact, ...]:
+        return self.extracted.warnings
+
+    @property
+    def attributes(self) -> tuple[AttributeFact, ...]:
+        return self.extracted.attributes
+
+    @property
+    def module_symbols(self) -> tuple[ModuleSymbolFact, ...]:
+        return self.extracted.module_symbols
+
+    @property
+    def decorators(self) -> tuple[str, ...]:
+        return self.extracted.decorators
 
 
 @dataclass(frozen=True)
@@ -94,5 +146,5 @@ class Diagnostic:
     message: str
     severity: Severity
     target: SourceRef
-    span: DocstringSpan | TextSpan | None
+    span: TextSpan | None
     fix: FixPlan | None = None

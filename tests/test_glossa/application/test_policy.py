@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from glossa.application.configuration import (
+    DEFAULT_SECTION_ORDER,
     FixApplyMode,
     FixPolicy,
     GlossaConfig,
@@ -20,6 +21,7 @@ from glossa.application.policy import (
     parse_inline_suppression,
     resolve_rule_policy,
 )
+from glossa.domain.rules import RuleMetadata
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +39,7 @@ def base_config() -> GlossaConfig:
             severity_overrides={},
             per_file_ignores={},
             rule_options={},
+            section_order=DEFAULT_SECTION_ORDER,
         ),
         suppressions=SuppressionPolicy(
             inline_enabled=True,
@@ -110,9 +113,20 @@ def test_is_rule_suppressed() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _stub_metadata(code: str) -> RuleMetadata:
+    from glossa.application.contracts import ALL_TARGET_KINDS
+    return RuleMetadata(
+        code=code,
+        description="stub",
+        default_severity=Severity.WARNING,
+        applies_to=ALL_TARGET_KINDS,
+        fixable=False,
+    )
+
+
 def test_resolve_rule_policy_enabled(base_config: GlossaConfig) -> None:
     """A rule matching a pattern in the select list is enabled."""
-    policy = resolve_rule_policy("D100", "src/foo.py", base_config)
+    policy = resolve_rule_policy(_stub_metadata("D100"), "src/foo.py", base_config)
     assert policy.enabled is True
 
 
@@ -125,12 +139,13 @@ def test_resolve_rule_policy_ignored(base_config: GlossaConfig) -> None:
             severity_overrides={},
             per_file_ignores={},
             rule_options={},
+            section_order=DEFAULT_SECTION_ORDER,
         ),
         suppressions=base_config.suppressions,
         fix=base_config.fix,
         output=base_config.output,
     )
-    policy = resolve_rule_policy("D100", "src/foo.py", config)
+    policy = resolve_rule_policy(_stub_metadata("D100"), "src/foo.py", config)
     assert policy.enabled is False
 
 
@@ -143,15 +158,16 @@ def test_resolve_rule_policy_per_file(base_config: GlossaConfig) -> None:
             severity_overrides={},
             per_file_ignores={"src/legacy/*.py": ("D100",)},
             rule_options={},
+            section_order=DEFAULT_SECTION_ORDER,
         ),
         suppressions=base_config.suppressions,
         fix=base_config.fix,
         output=base_config.output,
     )
     # Matching file: rule should be disabled
-    policy_matching = resolve_rule_policy("D100", "src/legacy/old.py", config)
+    policy_matching = resolve_rule_policy(_stub_metadata("D100"), "src/legacy/old.py", config)
     assert policy_matching.enabled is False
 
     # Non-matching file: rule should remain enabled
-    policy_other = resolve_rule_policy("D100", "src/new/fresh.py", config)
+    policy_other = resolve_rule_policy(_stub_metadata("D100"), "src/new/fresh.py", config)
     assert policy_other.enabled is True

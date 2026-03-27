@@ -6,11 +6,18 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from glossa.application.configuration import (
+    FixApplyMode,
     GlossaConfig,
     OutputFormat,
     config_with_overrides,
 )
-from glossa.application.fixing import FixResult, apply_fixes
+from glossa.application.fixing import (
+    FixRejection,
+    FixRejectionReason,
+    FixResult,
+    FixTransformation,
+    apply_fixes,
+)
 from glossa.application.linting import AnalyzedFile, analyze_file
 from glossa.application.protocols import DiscoveryPort, ExtractionPort, FilePort
 from glossa.application.registry import RuleRegistry
@@ -123,15 +130,16 @@ class GlossaService:
                 operational_issues=lint_result.operational_issues,
                 fix_enabled=config.fix.enabled,
             )
-        results = apply_fixes(
+        transformations = apply_fixes(
             analyzed_files=lint_result.files,
-            file_port=self._file_port,
             config=config,
-            extraction_port=self._extractor,
-            registry=self._registry,
+        )
+        fix_results = tuple(
+            self._finalize_transformation(t, config, lint_result.files)
+            for t in transformations
         )
         return FixRunResult(
-            results=results,
+            results=fix_results,
             fixable_diagnostics=fixable,
             operational_issues=lint_result.operational_issues,
             fix_enabled=True,
@@ -175,6 +183,83 @@ class GlossaService:
             config=config,
             registry=self._registry,
         ).diagnostics
+
+    def _finalize_transformation(
+        self,
+        transformation: FixTransformation,
+        config: GlossaConfig,
+        analyzed_files: tuple[AnalyzedFile, ...],
+    ) -> FixResult:
+        rejected = list(transformation.rejected)
+
+        if not transformation.accepted:
+            return FixResult(
+                source_id=transformation.source_id,
+                applied=(),
+                rejected=tuple(rejected),
+                validation_passed=True,
+            )
+
+        validation_passed = True
+        if config.fix.validate_after_apply:
+            original = next(
+                (f for f in analyzed_files if f.source_id == transformation.source_id),
+                None,
+            )
+            if original is not None:
+                try:
+                    reanalyzed = analyze_file(
+                        source_id=original.source_id,
+                        source_text=transformation.edited_source,
+                        extraction_port=self._extractor,
+                        config=config,
+                        registry=self._registry,
+                    )
+                except GlossaError as exc:
+                    validation_passed = False
+                    message = f"Edited source no longer analyzes cleanly: {exc}"
+                else:
+                    remaining = {
+                        (d.target.symbol_path, d.code)
+                        for d in reanalyzed.diagnostics
+                    }
+                    for plan in transformation.accepted:
+                        for rule_code in plan.affected_rules:
+                            if (plan.target.symbol_path, rule_code) in remaining:
+                                validation_passed = False
+                                message = (
+                                    f"Rule {rule_code} still fires for "
+                                    f"{'.'.join(plan.target.symbol_path) or '<module>'}."
+                                )
+                                break
+                        if not validation_passed:
+                            break
+
+        if not validation_passed:
+            for plan in transformation.accepted:
+                rejected.append(
+                    FixRejection(
+                        plan=plan,
+                        reason=FixRejectionReason.VALIDATION_FAILED,
+                        details=message,
+                    )
+                )
+            return FixResult(
+                source_id=transformation.source_id,
+                applied=(),
+                rejected=tuple(rejected),
+                validation_passed=False,
+            )
+
+        if config.fix.apply is not FixApplyMode.NEVER:
+            self._file_port.write(transformation.source_id, transformation.edited_source)
+
+        return FixResult(
+            source_id=transformation.source_id,
+            applied=transformation.accepted,
+            rejected=tuple(rejected),
+            validation_passed=True,
+        )
 
     def _analyze_paths(
         self,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, cast
 
 from glossa.application.contracts import (
     ALL_TARGET_KINDS,
@@ -10,6 +10,7 @@ from glossa.application.contracts import (
     Diagnostic,
     ExceptionFact,
     LintTarget,
+    RuleOptionDescriptor,
     Severity,
     SignatureFacts,
     TargetKind,
@@ -18,6 +19,7 @@ from glossa.application.contracts import (
 )
 from glossa.domain.models import InventorySectionKind, TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._options import validate_bool, validate_positive_int
 from glossa.domain.rules._parameters import documentable_param_names
 
 
@@ -67,6 +69,7 @@ def _make_missing_section_rule(
     signature_predicate: Callable[[SignatureFacts], bool],
     applies_to: frozenset[TargetKind],
     option_key: str | None = None,
+    option_schema: tuple[RuleOptionDescriptor, ...] = (),
 ) -> type:
     """Factory for D104/D105: fire if a signature predicate is True but section is missing."""
 
@@ -77,6 +80,7 @@ def _make_missing_section_rule(
             default_severity=Severity.WARNING,
             applies_to=applies_to,
             fixable=True,
+            option_schema=option_schema,
         )
 
         def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
@@ -180,6 +184,10 @@ class D102:
         applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
         fixable=False,
         requires_docstring=False,
+        option_schema=(
+            RuleOptionDescriptor("include_test_functions", False, validate_bool),
+            RuleOptionDescriptor("include_private_helpers", False, validate_bool),
+        ),
     )
 
     def evaluate(
@@ -249,6 +257,9 @@ D104 = _make_missing_section_rule(
     signature_predicate=lambda s: s.returns_value,
     applies_to=CALLABLE_TARGET_KINDS,
     option_key="simple_property_requires_returns",
+    option_schema=(
+        RuleOptionDescriptor("simple_property_requires_returns", True, validate_bool),
+    ),
 )
 
 
@@ -309,6 +320,9 @@ class D108:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.MODULE}),
         fixable=True,
+        option_schema=(
+            RuleOptionDescriptor("inventory_threshold", 2, validate_positive_int),
+        ),
     )
 
     def evaluate(
@@ -317,7 +331,7 @@ class D108:
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
 
-        threshold = context.policy.options.get("inventory_threshold", 2)
+        threshold = cast(int, context.policy.options.get("inventory_threshold", 2))
 
         public_classes = sum(
             1

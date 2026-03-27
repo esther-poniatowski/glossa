@@ -10,11 +10,13 @@ from glossa.application.contracts import (
     EditKind,
     FixPlan,
     LintTarget,
+    RuleOptionDescriptor,
     Severity,
     TargetKind,
 )
 from glossa.domain.models import TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._options import validate_string_tuple
 from glossa.domain.rules._scanning import scan_rst_directives
 
 
@@ -89,6 +91,9 @@ class D501:
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.METHOD}),
         fixable=False,
+        option_schema=(
+            RuleOptionDescriptor("trivial_dunder_allowlist", (), validate_string_tuple),
+        ),
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
@@ -97,7 +102,7 @@ class D501:
         if not (method_name.startswith("__") and method_name.endswith("__")):
             return ()
 
-        allowlist = context.policy.options.get("trivial_dunder_allowlist", ())
+        allowlist: tuple[str, ...] = context.policy.options.get("trivial_dunder_allowlist", ())  # type: ignore[assignment]
         if method_name in allowlist:
             return ()
 

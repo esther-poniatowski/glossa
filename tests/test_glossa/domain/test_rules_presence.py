@@ -8,11 +8,14 @@ from glossa.application.contracts import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,
+    ExtractedTarget,
     LintTarget,
     ModuleSymbolFact,
     ParameterFact,
     RelatedTargetSnapshot,
+    RelatedTargets,
     ResolvedRelatedTargets,
+    RulePolicy,
     Severity,
     SignatureFacts,
     SourceRef,
@@ -22,7 +25,6 @@ from glossa.application.contracts import (
     Visibility,
     WarningFact,
 )
-from glossa.application.policy import ResolvedRulePolicy
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
 from glossa.domain.rules.presence import (
@@ -52,7 +54,7 @@ def make_target(
     visibility: Visibility = Visibility.PUBLIC,
     is_test_target: bool = False,
     docstring=None,
-    raw_docstring=None,
+    raw_docstring: ExtractedDocstring | None = None,
     signature: SignatureFacts | None = None,
     exceptions: tuple[ExceptionFact, ...] = (),
     warnings: tuple[WarningFact, ...] = (),
@@ -63,19 +65,23 @@ def make_target(
 ) -> LintTarget:
     """Build a LintTarget with sensible defaults."""
     ref = SourceRef(source_id="mymodule.py", symbol_path=("mymodule",))
-    return LintTarget(
+    extracted = ExtractedTarget(
         ref=ref,
         kind=kind,
         visibility=visibility,
         is_test_target=is_test_target,
-        docstring=docstring,
-        raw_docstring=raw_docstring,
+        docstring=raw_docstring,
         signature=signature,
         exceptions=exceptions,
         warnings=warnings,
         attributes=attributes,
         module_symbols=module_symbols,
         decorators=decorators,
+        related=RelatedTargets(),
+    )
+    return LintTarget(
+        extracted=extracted,
+        docstring=docstring,
         related=related if related is not None else ResolvedRelatedTargets(),
     )
 
@@ -83,7 +89,7 @@ def make_target(
 def make_context(options: dict | None = None) -> RuleContext:
     """Return a RuleContext with an enabled WARNING policy."""
     return RuleContext(
-        policy=ResolvedRulePolicy(
+        policy=RulePolicy(
             enabled=True,
             severity=Severity.WARNING,
             options=options or {},

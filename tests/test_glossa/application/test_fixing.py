@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from glossa.application.configuration import (
+    DEFAULT_SECTION_ORDER,
     FixApplyMode,
     FixPolicy,
     GlossaConfig,
@@ -16,7 +17,6 @@ from glossa.application.linting import analyze_file
 from glossa.application.registry import RuleRegistry
 from glossa.domain.rules.prose import D201
 from glossa.infrastructure.extraction import ASTExtractor
-from glossa.infrastructure.files import LocalFilePort
 
 
 def _config() -> GlossaConfig:
@@ -27,6 +27,7 @@ def _config() -> GlossaConfig:
             severity_overrides={},
             per_file_ignores={},
             rule_options={},
+            section_order=DEFAULT_SECTION_ORDER,
         ),
         suppressions=SuppressionPolicy(
             inline_enabled=True,
@@ -35,7 +36,7 @@ def _config() -> GlossaConfig:
         fix=FixPolicy(
             enabled=True,
             apply=FixApplyMode.SAFE,
-            validate_after_apply=True,
+            validate_after_apply=False,
         ),
         output=OutputOptions(
             format=OutputFormat.TEXT,
@@ -45,10 +46,8 @@ def _config() -> GlossaConfig:
     )
 
 
-def test_apply_fixes_updates_docstring_body_without_corrupting_file(tmp_path) -> None:
+def test_apply_fixes_updates_docstring_body_without_corrupting_file() -> None:
     source = 'x = 1\n\ndef render():\n    """summary without period"""\n    return 1\n'
-    path = tmp_path / "sample.py"
-    path.write_text(source, encoding="utf-8")
 
     config = _config()
     analyzed = analyze_file(
@@ -59,23 +58,19 @@ def test_apply_fixes_updates_docstring_body_without_corrupting_file(tmp_path) ->
         registry=RuleRegistry(builtins=(D201(),), plugins=()),
     )
 
-    results = apply_fixes(
-        analyzed_files=(analyzed,),
-        file_port=LocalFilePort(tmp_path),
-        config=config,
-        extraction_port=ASTExtractor(),
-        registry=RuleRegistry(builtins=(D201(),), plugins=()),
-    )
+    transformations = apply_fixes(analyzed_files=(analyzed,), config=config)
 
-    assert results[0].applied
-    assert results[0].rejected == ()
+    assert len(transformations) == 1
+    t = transformations[0]
+    assert t.accepted
+    assert t.rejected == ()
     assert (
-        path.read_text(encoding="utf-8")
+        t.edited_source
         == 'x = 1\n\ndef render():\n    """summary without period."""\n    return 1\n'
     )
 
 
-def test_apply_fixes_does_not_false_conflict_across_multiple_docstrings(tmp_path) -> None:
+def test_apply_fixes_does_not_false_conflict_across_multiple_docstrings() -> None:
     source = (
         'def a():\n'
         '    """first summary"""\n'
@@ -84,8 +79,6 @@ def test_apply_fixes_does_not_false_conflict_across_multiple_docstrings(tmp_path
         '    """second summary"""\n'
         "    return 2\n"
     )
-    path = tmp_path / "sample.py"
-    path.write_text(source, encoding="utf-8")
 
     config = _config()
     analyzed = analyze_file(
@@ -96,21 +89,17 @@ def test_apply_fixes_does_not_false_conflict_across_multiple_docstrings(tmp_path
         registry=RuleRegistry(builtins=(D201(),), plugins=()),
     )
 
-    results = apply_fixes(
-        analyzed_files=(analyzed,),
-        file_port=LocalFilePort(tmp_path),
-        config=config,
-        extraction_port=ASTExtractor(),
-        registry=RuleRegistry(builtins=(D201(),), plugins=()),
-    )
+    transformations = apply_fixes(analyzed_files=(analyzed,), config=config)
 
-    assert len(results[0].applied) == 2
+    assert len(transformations) == 1
+    t = transformations[0]
+    assert len(t.accepted) == 2
     assert not any(
         rejection.reason is FixRejectionReason.CONFLICT
-        for rejection in results[0].rejected
+        for rejection in t.rejected
     )
     assert (
-        path.read_text(encoding="utf-8")
+        t.edited_source
         == (
             'def a():\n'
             '    """first summary."""\n'

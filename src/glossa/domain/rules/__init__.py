@@ -2,21 +2,25 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Protocol
 
 from glossa.application.contracts import (
     Diagnostic,
+    ExtractedDocstring,
     FixPlan,
     LintTarget,
+    RuleOptionDescriptor,
     RulePolicy,
     Severity,
     TargetKind,
+    TextPosition,
     TextSpan,
 )
+from glossa.domain.models import DocstringSpan
 
 if TYPE_CHECKING:
-    from glossa.domain.models import DocstringSpan
+    pass
 
 
 @dataclass(frozen=True)
@@ -28,12 +32,13 @@ class RuleMetadata:
     fixable: bool
     requires_docstring: bool = True
     requires_signature: bool = False
+    option_schema: tuple[RuleOptionDescriptor, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
 class RuleContext:
     policy: RulePolicy
-    style: Literal["numpy"] = "numpy"
+    section_order: tuple[str, ...] = field(default_factory=tuple)
 
 
 class Rule(Protocol):
@@ -47,6 +52,43 @@ class Rule(Protocol):
         ...
 
 
+# ---------------------------------------------------------------------------
+# DocstringSpan → TextSpan conversion
+# ---------------------------------------------------------------------------
+
+
+def _docstring_offset_to_text_position(
+    body: str,
+    offset: int,
+    body_start: TextPosition,
+) -> TextPosition:
+    text_before = body[:offset]
+    newlines = text_before.count("\n")
+    if newlines == 0:
+        return TextPosition(
+            line=body_start.line,
+            column=body_start.column + offset,
+        )
+    last_newline = text_before.rfind("\n")
+    col = offset - last_newline - 1
+    return TextPosition(line=body_start.line + newlines, column=col)
+
+
+def _docstring_span_to_text_span(
+    span: DocstringSpan,
+    raw_doc: ExtractedDocstring,
+) -> TextSpan:
+    body = raw_doc.body
+    start = _docstring_offset_to_text_position(body, span.start_offset, raw_doc.body_span.start)
+    end = _docstring_offset_to_text_position(body, span.end_offset, raw_doc.body_span.start)
+    return TextSpan(start=start, end=end)
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic factory
+# ---------------------------------------------------------------------------
+
+
 def make_diagnostic(
     rule: Rule,
     target: LintTarget,
@@ -55,17 +97,27 @@ def make_diagnostic(
     span: DocstringSpan | TextSpan | None = None,
     fix: FixPlan | None = None,
 ) -> Diagnostic:
-    """Build a Diagnostic with code, severity, and target derived from context.
+    """Build a Diagnostic with invariants enforced.
 
-    This enforces the invariants that ``code`` always matches the rule's
-    metadata, ``severity`` always comes from the resolved policy, and
-    ``target`` always comes from the lint target's ``ref``.
+    Converts any ``DocstringSpan`` to a file-level ``TextSpan`` using the
+    target's raw docstring body span.  ``Diagnostic.span`` is always
+    ``TextSpan | None``.
     """
+    normalized: TextSpan | None
+    if isinstance(span, DocstringSpan):
+        raw_doc = target.extracted.docstring
+        if raw_doc is not None:
+            normalized = _docstring_span_to_text_span(span, raw_doc)
+        else:
+            normalized = None
+    else:
+        normalized = span
+
     return Diagnostic(
         code=rule.metadata.code,
         message=message,
         severity=context.policy.severity,
         target=target.ref,
-        span=span,
+        span=normalized,
         fix=fix,
     )

@@ -45,6 +45,7 @@ from glossa.application.contracts.evaluation import (
     LintTarget,
     RelatedTargetSnapshot,
     ResolvedRelatedTargets,
+    RuleOptionDescriptor,
     RulePolicy,
 )
 
@@ -75,5 +76,6 @@ __all__ = [
     "LintTarget",
     "RelatedTargetSnapshot",
     "ResolvedRelatedTargets",
+    "RuleOptionDescriptor",
     "RulePolicy",
 ]

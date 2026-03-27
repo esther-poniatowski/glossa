@@ -5,52 +5,29 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum
 from types import MappingProxyType
-from typing import Callable, Mapping, Sequence
+from typing import Mapping, Sequence, cast
 
 from glossa.application.contracts import Severity
 from glossa.errors import ConfigurationError
 
+
 DEFAULT_RULE_SELECT = ("D1xx", "D2xx", "D3xx", "D4xx", "D5xx")
-DEFAULT_TRIVIAL_DUNDER_ALLOWLIST = (
-    "__init__",
-    "__new__",
-    "__del__",
-    "__repr__",
-    "__str__",
+
+DEFAULT_SECTION_ORDER: tuple[str, ...] = (
+    "Parameters",
+    "Returns",
+    "Yields",
+    "Raises",
+    "Warns",
+    "Attributes",
+    "Notes",
+    "Warnings",
+    "See Also",
+    "Examples",
+    "Classes",
+    "Functions",
 )
 
-@dataclass(frozen=True)
-class RuleOptionDescriptor:
-    key: str
-    default: object
-    validator: Callable[[object, str], object]
-
-
-# Single source of truth for built-in rule options: key, default, validator.
-_RULE_OPTION_SCHEMA: dict[str, tuple[RuleOptionDescriptor, ...]] = {
-    "D102": (
-        RuleOptionDescriptor("include_test_functions", False, lambda v, p: _bool(v, p)),
-        RuleOptionDescriptor("include_private_helpers", False, lambda v, p: _bool(v, p)),
-    ),
-    "D104": (
-        RuleOptionDescriptor("simple_property_requires_returns", True, lambda v, p: _bool(v, p)),
-    ),
-    "D108": (
-        RuleOptionDescriptor("inventory_threshold", 2, lambda v, p: _positive_int(v, p)),
-    ),
-    "D306": (
-        RuleOptionDescriptor("api_entry_modules", (), lambda v, p: _string_tuple(v, p)),
-    ),
-    "D501": (
-        RuleOptionDescriptor("trivial_dunder_allowlist", DEFAULT_TRIVIAL_DUNDER_ALLOWLIST, lambda v, p: _string_tuple(v, p)),
-    ),
-}
-
-
-def _rule_option_defaults(rule_code: str) -> dict[str, object]:
-    """Derive defaults from the schema for a given rule code."""
-    descriptors = _RULE_OPTION_SCHEMA.get(rule_code, ())
-    return {d.key: d.default for d in descriptors}
 
 class OutputFormat(Enum):
     TEXT = "text"
@@ -70,6 +47,7 @@ class RuleSelection:
     severity_overrides: Mapping[str, Severity]
     per_file_ignores: Mapping[str, tuple[str, ...]]
     rule_options: Mapping[str, Mapping[str, object]]
+    section_order: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -121,25 +99,35 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
             "rules.select",
         ),
         ignore=_string_tuple(rules_raw.get("ignore", ()), "rules.ignore"),
-        severity_overrides=_freeze_mapping(
-            {
-                code: _enum_member(Severity, value, f"rules.severity_overrides.{code}")
-                for code, value in severity_overrides_raw.items()
-            }
+        severity_overrides=cast(
+            Mapping[str, Severity],
+            _freeze_mapping(
+                {
+                    code: _enum_member(Severity, value, f"rules.severity_overrides.{code}")
+                    for code, value in severity_overrides_raw.items()
+                }
+            ),
         ),
-        per_file_ignores=_freeze_mapping(
-            {
-                pattern: _string_tuple(codes, f"rules.per_file_ignores.{pattern}")
-                for pattern, codes in per_file_ignores_raw.items()
-            }
+        per_file_ignores=cast(
+            Mapping[str, tuple[str, ...]],
+            _freeze_mapping(
+                {
+                    pattern: _string_tuple(codes, f"rules.per_file_ignores.{pattern}")
+                    for pattern, codes in per_file_ignores_raw.items()
+                }
+            ),
         ),
         rule_options=_freeze_mapping(
             {
                 code: _freeze_mapping(
-                    _resolve_rule_options(code, _mapping(value, f"rules.rule_options.{code}"))
+                    _mapping(value, f"rules.rule_options.{code}")  # type: ignore[arg-type]
                 )
                 for code, value in rule_options_raw.items()
             }
+        ),
+        section_order=_string_tuple(
+            rules_raw.get("section_order", DEFAULT_SECTION_ORDER),
+            "rules.section_order",
         ),
     )
 
@@ -156,7 +144,7 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
 
     fix = FixPolicy(
         enabled=_bool(fix_raw.get("enabled", True), "fix.enabled"),
-        apply=_enum_member(FixApplyMode, fix_raw.get("apply", FixApplyMode.SAFE.value), "fix.apply"),
+        apply=cast(FixApplyMode, _enum_member(FixApplyMode, fix_raw.get("apply", FixApplyMode.SAFE.value), "fix.apply")),
         validate_after_apply=_bool(
             fix_raw.get("validate_after_apply", True),
             "fix.validate_after_apply",
@@ -164,11 +152,11 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
     )
 
     output = OutputOptions(
-        format=_enum_member(
+        format=cast(OutputFormat, _enum_member(
             OutputFormat,
             output_raw.get("format", OutputFormat.TEXT.value),
             "output.format",
-        ),
+        )),
         color=_bool(output_raw.get("color", True), "output.color"),
         show_source=_bool(output_raw.get("show_source", True), "output.show_source"),
     )
@@ -211,32 +199,6 @@ def config_with_overrides(
         return config
 
     return replace(config, rules=rules, output=output)
-
-
-def _resolve_rule_options(rule_code: str, raw: Mapping[str, object]) -> dict[str, object]:
-    """Validate and merge user-supplied options for *rule_code*.
-
-    Returns a plain dict with defaults applied for any keys the user did not
-    set.  Unknown keys for built-in rules raise ``ConfigurationError``;
-    unknown keys for plugin rules are passed through.
-    """
-    descriptors = _RULE_OPTION_SCHEMA.get(rule_code)
-    is_builtin = descriptors is not None
-    schema_map = {d.key: d for d in descriptors} if descriptors else {}
-    result: dict[str, object] = _rule_option_defaults(rule_code)
-
-    for key, value in raw.items():
-        descriptor = schema_map.get(key)
-        if descriptor is None:
-            if is_builtin:
-                raise ConfigurationError(
-                    f"Unknown option {key!r} for built-in rule {rule_code!r}"
-                )
-            result[key] = value
-            continue
-        result[key] = descriptor.validator(value, key)
-
-    return result
 
 
 def _mapping(value: object, path: str) -> Mapping[str, object]:
