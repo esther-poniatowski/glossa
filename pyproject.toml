@@ -18,7 +18,7 @@ authors = [{name = "Esther Poniatowski", email = "esther.poniatowski@ens.psl.eu"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 readme = {file = "README.md", content-type = "text/markdown"}
-description = "Documentation linter for Python projects"
+description = "Lints and fixes Python docstrings to follow NumPy-style conventions."
 keywords = ["documentation", "linter", "docstrings", "quality", "static-analysis"]
 classifiers = [
     "Programming Language :: Python :: 3",
