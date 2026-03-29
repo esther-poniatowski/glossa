@@ -86,10 +86,20 @@ _UNNAMED_ENTRY_RE = re.compile(r"^(?P<type>[^,]+?)(?:\s*,\s*(?P<default>.+))?\s*
 # Section parse function type
 # ---------------------------------------------------------------------------
 
-SectionParseFunc = Callable[
-    [str, list[str], DocstringSpan, DocstringSpan, DocstringSpan, list[str], int],
-    SectionNode,
-]
+@dataclass(frozen=True)
+class SectionParseContext:
+    """Bundled context passed to section parse functions."""
+
+    title: str
+    body_lines: list[str]
+    title_span: DocstringSpan
+    underline_span: DocstringSpan
+    section_span: DocstringSpan
+    all_lines: list[str]
+    body_start: int
+
+
+SectionParseFunc = Callable[[SectionParseContext], SectionNode]
 
 
 @dataclass(frozen=True)
@@ -344,80 +354,48 @@ def _parse_see_also_items(
 # ---------------------------------------------------------------------------
 
 
-def _parse_typed_section(
-    title: str,
-    body_lines: list[str],
-    title_span: DocstringSpan,
-    underline_span: DocstringSpan,
-    section_span: DocstringSpan,
-    all_lines: list[str],
-    body_start: int,
-) -> TypedSection:
-    kind = _TYPED_SECTION_TITLES[title]
-    entries = _parse_typed_entries(body_lines, kind, all_lines, body_start)
+def _parse_typed_section(ctx: SectionParseContext) -> TypedSection:
+    kind = _TYPED_SECTION_TITLES[ctx.title]
+    entries = _parse_typed_entries(ctx.body_lines, kind, ctx.all_lines, ctx.body_start)
     return TypedSection(
         kind=kind,
-        title_span=title_span,
-        underline_span=underline_span,
+        title_span=ctx.title_span,
+        underline_span=ctx.underline_span,
         entries=entries,
-        span=section_span,
+        span=ctx.section_span,
     )
 
 
-def _parse_prose_section(
-    title: str,
-    body_lines: list[str],
-    title_span: DocstringSpan,
-    underline_span: DocstringSpan,
-    section_span: DocstringSpan,
-    all_lines: list[str],
-    body_start: int,
-) -> ProseSection:
-    kind = _PROSE_SECTION_TITLES[title]
+def _parse_prose_section(ctx: SectionParseContext) -> ProseSection:
+    kind = _PROSE_SECTION_TITLES[ctx.title]
     return ProseSection(
         kind=kind,
-        title_span=title_span,
-        underline_span=underline_span,
-        body_lines=tuple(line.rstrip() for line in body_lines),
-        span=section_span,
+        title_span=ctx.title_span,
+        underline_span=ctx.underline_span,
+        body_lines=tuple(line.rstrip() for line in ctx.body_lines),
+        span=ctx.section_span,
     )
 
 
-def _parse_inventory_section(
-    title: str,
-    body_lines: list[str],
-    title_span: DocstringSpan,
-    underline_span: DocstringSpan,
-    section_span: DocstringSpan,
-    all_lines: list[str],
-    body_start: int,
-) -> InventorySection:
-    kind = _INVENTORY_SECTION_TITLES[title]
-    items = _parse_inventory_items(body_lines, all_lines, body_start)
+def _parse_inventory_section(ctx: SectionParseContext) -> InventorySection:
+    kind = _INVENTORY_SECTION_TITLES[ctx.title]
+    items = _parse_inventory_items(ctx.body_lines, ctx.all_lines, ctx.body_start)
     return InventorySection(
         kind=kind,
-        title_span=title_span,
-        underline_span=underline_span,
+        title_span=ctx.title_span,
+        underline_span=ctx.underline_span,
         items=items,
-        span=section_span,
+        span=ctx.section_span,
     )
 
 
-def _parse_see_also_section(
-    title: str,
-    body_lines: list[str],
-    title_span: DocstringSpan,
-    underline_span: DocstringSpan,
-    section_span: DocstringSpan,
-    all_lines: list[str],
-    body_start: int,
-) -> SeeAlsoSection:
-    items = _parse_see_also_items(body_lines, all_lines, body_start)
+def _parse_see_also_section(ctx: SectionParseContext) -> SeeAlsoSection:
+    items = _parse_see_also_items(ctx.body_lines, ctx.all_lines, ctx.body_start)
     return SeeAlsoSection(
-        title_span=title_span,
-        underline_span=underline_span,
+        title_span=ctx.title_span,
+        underline_span=ctx.underline_span,
         items=items,
-        span=section_span,
+        span=ctx.section_span,
     )
 
 
@@ -645,9 +623,16 @@ def parse_docstring(
 
         parse_fn = dispatch.get(title)
         if parse_fn is not None:
-            sections.append(
-                parse_fn(title, body_lines, title_span, underline_span, section_span, lines, body_start)
+            ctx = SectionParseContext(
+                title=title,
+                body_lines=body_lines,
+                title_span=title_span,
+                underline_span=underline_span,
+                section_span=section_span,
+                all_lines=lines,
+                body_start=body_start,
             )
+            sections.append(parse_fn(ctx))
         else:
             sections.append(
                 UnknownSection(
