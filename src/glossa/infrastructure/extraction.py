@@ -279,19 +279,17 @@ def _collect_exceptions(
                 facts.append(
                     ExceptionFact(
                         type_name="",
-                        evidence="reraise",
-                        confidence="high" if not in_conditional else "medium",
+                        evidence=ExceptionEvidence.RERAISE,
+                        confidence=Confidence.HIGH if not in_conditional else Confidence.MEDIUM,
                     )
                 )
             else:
                 type_name = _exc_type_name(exc_node)
-                evidence: str = "raise"
-                confidence = "high" if not in_conditional else "medium"
                 facts.append(
                     ExceptionFact(
                         type_name=type_name,
-                        evidence=evidence,  # type: ignore[arg-type]
-                        confidence=confidence,  # type: ignore[arg-type]
+                        evidence=ExceptionEvidence.RAISE,
+                        confidence=Confidence.HIGH if not in_conditional else Confidence.MEDIUM,
                     )
                 )
         elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With, ast.AsyncWith, ast.AsyncFor)):
@@ -354,7 +352,7 @@ def _extract_warnings(
                             type_name = ast.unparse(kw.value)
                             break
                 facts.append(
-                    WarningFact(type_name=type_name, confidence="high")
+                    WarningFact(type_name=type_name, confidence=Confidence.HIGH)
                 )
     return tuple(facts)
 

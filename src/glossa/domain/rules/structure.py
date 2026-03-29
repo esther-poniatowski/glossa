@@ -293,7 +293,7 @@ class D304:
 # ---------------------------------------------------------------------------
 
 _D305_DIRECTIVES = frozenset({
-    "note", "warning", "seealso", "see-also", "admonition",
+    "seealso", "see-also", "admonition",
     "attention", "caution", "danger", "error", "hint", "important", "tip",
 })
 
@@ -358,7 +358,7 @@ class D306:
         if target.docstring is None:
             return ()
         source_id = target.ref.source_id
-        entry_modules: tuple[str, ...] = context.policy.options.get("api_entry_modules", ())  # type: ignore[assignment]
+        entry_modules: tuple[str, ...] = context.policy.options["api_entry_modules"]  # type: ignore[assignment]
         for pattern in entry_modules:
             if fnmatch.fnmatch(source_id, pattern):
                 return ()

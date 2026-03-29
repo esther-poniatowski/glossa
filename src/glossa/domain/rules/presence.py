@@ -20,7 +20,7 @@ from glossa.domain.contracts import (
     WarningFact,
 )
 from glossa.domain.models import InventorySectionKind, TypedSectionKind
-from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules import Rule, RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._options import validate_bool, validate_positive_int
 from glossa.domain.rules._parameters import documentable_param_names
 
@@ -35,7 +35,7 @@ def _make_missing_docstring_rule(
     code: str,
     description: str,
     message: str,
-) -> type:
+) -> type[Rule]:
     """Factory for D100/D101: fire if a public target of *kind* has no docstring."""
 
     class _Rule:
@@ -72,7 +72,7 @@ def _make_missing_section_rule(
     applies_to: frozenset[TargetKind],
     option_key: str | None = None,
     option_schema: tuple[RuleOptionDescriptor, ...] = (),
-) -> type:
+) -> type[Rule]:
     """Factory for D104/D105: fire if a signature predicate is True but section is missing."""
 
     class _Rule:
@@ -92,7 +92,7 @@ def _make_missing_section_rule(
                 return ()
 
             if option_key is not None and target.kind is TargetKind.PROPERTY:
-                if not context.policy.options.get(option_key, True):
+                if not context.policy.options[option_key]:
                     return ()
 
             if not target.docstring.has_typed_section(section_kind):
@@ -111,9 +111,9 @@ def _make_missing_fact_section_rule(
     message: str,
     fact_accessor: Callable[[LintTarget], tuple[ExceptionFact, ...] | tuple[WarningFact, ...]],
     section_kind: TypedSectionKind,
-    confidence_filter: str = "high",
-    exclude_evidence: str | None = None,
-) -> type:
+    confidence_filter: Confidence = Confidence.HIGH,
+    exclude_evidence: ExceptionEvidence | None = None,
+) -> type[Rule]:
     """Factory for D106/D107: fire if high-confidence facts exist but section is missing."""
 
     class _Rule:
@@ -131,8 +131,12 @@ def _make_missing_fact_section_rule(
             facts = fact_accessor(target)
             relevant = [
                 f for f in facts
-                if f.confidence == confidence_filter
-                and (exclude_evidence is None or getattr(f, "evidence", None) != exclude_evidence)
+                if f.confidence is confidence_filter
+                and not (
+                    exclude_evidence is not None
+                    and isinstance(f, ExceptionFact)
+                    and f.evidence is exclude_evidence
+                )
             ]
             if not relevant:
                 return ()
@@ -200,11 +204,11 @@ class D102:
         if target.docstring is not None:
             return ()
 
-        include_test = context.policy.options.get("include_test_functions", False)
+        include_test = context.policy.options["include_test_functions"]
         if not include_test and target.is_test_target:
             return ()
 
-        include_private = context.policy.options.get("include_private_helpers", False)
+        include_private = context.policy.options["include_private_helpers"]
         if not include_private and target.visibility is Visibility.PRIVATE:
             return ()
 
@@ -289,8 +293,8 @@ D106 = _make_missing_fact_section_rule(
     message="Missing Raises section for public-contract exceptions.",
     fact_accessor=lambda t: t.exceptions,
     section_kind=TypedSectionKind.RAISES,
-    confidence_filter="high",
-    exclude_evidence="reraise",
+    confidence_filter=Confidence.HIGH,
+    exclude_evidence=ExceptionEvidence.RERAISE,
 )
 
 
@@ -304,7 +308,7 @@ D107 = _make_missing_fact_section_rule(
     message="Missing Warns section for public warnings.",
     fact_accessor=lambda t: t.warnings,
     section_kind=TypedSectionKind.WARNS,
-    confidence_filter="high",
+    confidence_filter=Confidence.HIGH,
 )
 
 
@@ -333,7 +337,7 @@ class D108:
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
 
-        threshold = cast(int, context.policy.options.get("inventory_threshold", 2))
+        threshold = cast(int, context.policy.options["inventory_threshold"])
 
         public_classes = sum(
             1

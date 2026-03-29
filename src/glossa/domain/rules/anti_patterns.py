@@ -102,7 +102,7 @@ class D501:
         if not (method_name.startswith("__") and method_name.endswith("__")):
             return ()
 
-        allowlist: tuple[str, ...] = context.policy.options.get("trivial_dunder_allowlist", ())  # type: ignore[assignment]
+        allowlist: tuple[str, ...] = context.policy.options["trivial_dunder_allowlist"]  # type: ignore[assignment]
         if method_name in allowlist:
             return ()
 

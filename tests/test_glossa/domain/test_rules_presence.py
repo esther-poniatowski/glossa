@@ -88,13 +88,23 @@ def make_target(
     )
 
 
-def make_context(options: dict | None = None) -> RuleContext:
-    """Return a RuleContext with an enabled WARNING policy."""
+def make_context(options: dict | None = None, *, rule=None) -> RuleContext:
+    """Return a RuleContext with an enabled WARNING policy.
+
+    When *rule* is provided, the option schema defaults are merged first,
+    then any explicit *options* override them — mirroring the production
+    ``_resolve_options`` behaviour.
+    """
+    resolved: dict[str, object] = {}
+    if rule is not None:
+        resolved = {d.key: d.default for d in rule.metadata.option_schema}
+    if options:
+        resolved.update(options)
     return RuleContext(
         policy=RulePolicy(
             enabled=True,
             severity=Severity.WARNING,
-            options=options or {},
+            options=resolved,
         )
     )
 
@@ -160,30 +170,33 @@ def test_d101_present_class_docstring():
 
 
 def test_d102_missing_callable_docstring():
+    rule = D102()
     target = make_target(kind=TargetKind.FUNCTION, visibility=Visibility.PUBLIC, docstring=None)
-    diagnostics = D102().evaluate(target, make_context())
+    diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert len(diagnostics) == 1
     assert diagnostics[0].code == "D102"
 
 
 def test_d102_present_callable_docstring():
+    rule = D102()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PUBLIC,
         docstring=parsed("Do something."),
     )
-    diagnostics = D102().evaluate(target, make_context())
+    diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert diagnostics == ()
 
 
 def test_d102_private_skipped():
     """PRIVATE callable does not fire when include_private_helpers is False (default)."""
+    rule = D102()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PRIVATE,
         docstring=None,
     )
-    diagnostics = D102().evaluate(target, make_context({"include_private_helpers": False}))
+    diagnostics = rule.evaluate(target, make_context({"include_private_helpers": False}, rule=rule))
     assert diagnostics == ()
 
 
@@ -192,12 +205,13 @@ def test_d102_private_fires_when_opted_in():
     # D102 only fires for PUBLIC visibility regardless of option — private helpers
     # are simply not flagged even with include_private_helpers=True because D102
     # guards on target.visibility is Visibility.PUBLIC at the end.
+    rule = D102()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PRIVATE,
         docstring=None,
     )
-    diagnostics = D102().evaluate(target, make_context({"include_private_helpers": True}))
+    diagnostics = rule.evaluate(target, make_context({"include_private_helpers": True}, rule=rule))
     # include_private_helpers=True only removes the early-exit guard; the final
     # check still requires PUBLIC visibility for D102 to fire.
     assert diagnostics == ()
@@ -205,13 +219,14 @@ def test_d102_private_fires_when_opted_in():
 
 def test_d102_test_target_skipped():
     """Test functions are skipped when include_test_functions is False."""
+    rule = D102()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PUBLIC,
         is_test_target=True,
         docstring=None,
     )
-    diagnostics = D102().evaluate(target, make_context({"include_test_functions": False}))
+    diagnostics = rule.evaluate(target, make_context({"include_test_functions": False}, rule=rule))
     assert diagnostics == ()
 
 
@@ -381,7 +396,7 @@ def test_d105_yields_section_present():
 
 def test_d106_missing_raises():
     """High-confidence raise with no Raises section fires D106."""
-    exc = ExceptionFact(type_name="ValueError", evidence="raise", confidence="high")
+    exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RAISE, confidence=Confidence.HIGH)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
@@ -401,7 +416,7 @@ def test_d106_raises_section_present():
         "ValueError\n"
         "    When the input is invalid.\n"
     )
-    exc = ExceptionFact(type_name="ValueError", evidence="raise", confidence="high")
+    exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RAISE, confidence=Confidence.HIGH)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed(doc_text),
@@ -413,7 +428,7 @@ def test_d106_raises_section_present():
 
 def test_d106_low_confidence_no_fire():
     """Low-confidence raise does not trigger D106."""
-    exc = ExceptionFact(type_name="ValueError", evidence="raise", confidence="low")
+    exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RAISE, confidence=Confidence.LOW)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
@@ -425,7 +440,7 @@ def test_d106_low_confidence_no_fire():
 
 def test_d106_reraise_excluded():
     """High-confidence reraise is excluded from D106 checks."""
-    exc = ExceptionFact(type_name="ValueError", evidence="reraise", confidence="high")
+    exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RERAISE, confidence=Confidence.HIGH)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
@@ -454,29 +469,32 @@ def _make_symbols(n_classes: int = 0, n_functions: int = 0) -> tuple[ModuleSymbo
 
 def test_d108_missing_inventory():
     """Module with many public symbols but no inventory fires D108."""
+    rule = D108()
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
         module_symbols=_make_symbols(n_classes=2, n_functions=2),
     )
-    diagnostics = D108().evaluate(target, make_context())
+    diagnostics = rule.evaluate(target, make_context(rule=rule))
     codes = [d.code for d in diagnostics]
     assert codes.count("D108") == 2
 
 
 def test_d108_below_threshold_no_fire():
     """Module with fewer public symbols than the threshold does not fire."""
+    rule = D108()
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
         module_symbols=_make_symbols(n_classes=1, n_functions=1),
     )
-    diagnostics = D108().evaluate(target, make_context())
+    diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert diagnostics == ()
 
 
 def test_d108_inventory_present_no_fire():
     """Module with inventory sections does not fire."""
+    rule = D108()
     doc_text = (
         "A module.\n\n"
         "Classes\n"
@@ -494,17 +512,18 @@ def test_d108_inventory_present_no_fire():
         docstring=parsed(doc_text),
         module_symbols=_make_symbols(n_classes=2, n_functions=2),
     )
-    diagnostics = D108().evaluate(target, make_context())
+    diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert diagnostics == ()
 
 
 def test_d108_custom_threshold():
     """Custom inventory_threshold option is respected."""
+    rule = D108()
     # With threshold=3, two public classes should not fire.
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
         module_symbols=_make_symbols(n_classes=2, n_functions=0),
     )
-    diagnostics = D108().evaluate(target, make_context({"inventory_threshold": 3}))
+    diagnostics = rule.evaluate(target, make_context({"inventory_threshold": 3}, rule=rule))
     assert diagnostics == ()
