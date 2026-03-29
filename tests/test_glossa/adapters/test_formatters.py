@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from glossa.application.contracts import (
+from glossa.domain.contracts import (
     Diagnostic,
     FixPlan,
     Severity,

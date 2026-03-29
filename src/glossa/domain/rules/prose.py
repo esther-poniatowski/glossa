@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from glossa.application.contracts import (
+from glossa.domain.contracts import (
     ALL_TARGET_KINDS,
     NON_PROPERTY_KINDS,
     DocstringEdit,

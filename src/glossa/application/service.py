@@ -21,7 +21,7 @@ from glossa.application.fixing import (
 from glossa.application.linting import AnalyzedFile, analyze_file
 from glossa.application.protocols import DiscoveryPort, ExtractionPort, FilePort
 from glossa.application.registry import RuleRegistry
-from glossa.application.contracts import Diagnostic
+from glossa.domain.contracts import Diagnostic
 from glossa.errors import GlossaError
 
 

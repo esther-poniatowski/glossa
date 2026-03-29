@@ -1,8 +1,9 @@
 """Cross-layer DTOs shared across glossa.
 
-This package is owned by the application layer. Infrastructure constructs
-these DTOs; the domain consumes them. All types are immutable and free
-of infrastructure-specific classes such as ``Path`` or ``ast.AST``.
+This package is owned by the domain layer. Infrastructure constructs
+these DTOs; the application orchestrates them; the domain rules consume
+them. All types are immutable and free of infrastructure-specific classes
+such as ``Path`` or ``ast.AST``.
 
 Sub-modules
 -----------
@@ -14,7 +15,7 @@ evaluation
     Rule evaluation, diagnostic, and fix-planning types.
 """
 
-from glossa.application.contracts.core import (
+from glossa.domain.contracts.core import (
     ALL_TARGET_KINDS,
     CALLABLE_AND_CLASS_KINDS,
     CALLABLE_TARGET_KINDS,
@@ -26,8 +27,10 @@ from glossa.application.contracts.core import (
     TextSpan,
     Visibility,
 )
-from glossa.application.contracts.extraction import (
+from glossa.domain.contracts.extraction import (
     AttributeFact,
+    Confidence,
+    ExceptionEvidence,
     ExceptionFact,
     ExtractedDocstring,
     ExtractedTarget,
@@ -37,7 +40,7 @@ from glossa.application.contracts.extraction import (
     SignatureFacts,
     WarningFact,
 )
-from glossa.application.contracts.evaluation import (
+from glossa.domain.contracts.evaluation import (
     Diagnostic,
     DocstringEdit,
     EditKind,
@@ -61,6 +64,8 @@ __all__ = [
     "TextSpan",
     "Visibility",
     "AttributeFact",
+    "Confidence",
+    "ExceptionEvidence",
     "ExceptionFact",
     "ExtractedDocstring",
     "ExtractedTarget",

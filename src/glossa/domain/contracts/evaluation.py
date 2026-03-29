@@ -7,14 +7,14 @@ from enum import Enum
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Callable, Mapping
 
-from glossa.application.contracts.core import (
+from glossa.domain.contracts.core import (
     Severity,
     SourceRef,
     TargetKind,
     TextSpan,
     Visibility,
 )
-from glossa.application.contracts.extraction import (
+from glossa.domain.contracts.extraction import (
     AttributeFact,
     ExceptionFact,
     ExtractedDocstring,
@@ -58,14 +58,19 @@ class LintTarget:
     """Enriched target for rule evaluation.
 
     Wraps an ``ExtractedTarget`` with a parsed docstring and resolved
-    related-target snapshots.  All fields from the underlying
-    ``ExtractedTarget`` are forwarded as read-only properties so that
-    existing rule code requires no changes.
+    related-target snapshots.  Explicitly typed properties forward known
+    fields for static type safety.  ``__getattr__`` provides a safety net
+    so that new ``ExtractedTarget`` fields are automatically available
+    without requiring manual forwarding.
     """
 
     extracted: ExtractedTarget
     docstring: ParsedDocstring | None
     related: ResolvedRelatedTargets
+
+    def __getattr__(self, name: str) -> object:
+        """Delegate unknown attribute access to the underlying ExtractedTarget."""
+        return getattr(self.extracted, name)
 
     @property
     def ref(self) -> SourceRef:

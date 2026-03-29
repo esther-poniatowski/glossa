@@ -7,7 +7,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Mapping, Sequence, cast
 
-from glossa.application.contracts import Severity
+from glossa.domain.contracts import Severity
 from glossa.errors import ConfigurationError
 
 

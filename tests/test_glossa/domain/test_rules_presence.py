@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.application.contracts import (
+from glossa.domain.contracts import (
     AttributeFact,
+    Confidence,
+    ExceptionEvidence,
     ExceptionFact,
     ExtractedDocstring,
     ExtractedTarget,

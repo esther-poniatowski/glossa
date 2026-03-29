@@ -7,7 +7,7 @@ from enum import Enum
 
 from glossa.application.configuration import GlossaConfig
 from glossa.application.linting import AnalyzedFile, AnalyzedTarget
-from glossa.application.contracts import EditKind, FixPlan, SourceRef
+from glossa.domain.contracts import EditKind, FixPlan, SourceRef
 from glossa.domain.fixes import intervals_overlap
 
 

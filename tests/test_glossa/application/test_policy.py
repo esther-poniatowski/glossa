@@ -14,7 +14,7 @@ from glossa.application.configuration import (
     RuleSelection,
     SuppressionPolicy,
 )
-from glossa.application.contracts import Severity
+from glossa.domain.contracts import Severity
 from glossa.application.policy import (
     is_rule_suppressed,
     matches_pattern,
@@ -114,7 +114,7 @@ def test_is_rule_suppressed() -> None:
 
 
 def _stub_metadata(code: str) -> RuleMetadata:
-    from glossa.application.contracts import ALL_TARGET_KINDS
+    from glossa.domain.contracts import ALL_TARGET_KINDS
     return RuleMetadata(
         code=code,
         description="stub",

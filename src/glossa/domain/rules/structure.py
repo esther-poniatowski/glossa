@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import re
 
-from glossa.application.contracts import (
+from glossa.domain.contracts import (
     ALL_TARGET_KINDS,
     CALLABLE_AND_CLASS_KINDS,
     Diagnostic,

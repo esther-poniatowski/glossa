@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Callable, cast
 
-from glossa.application.contracts import (
+from glossa.domain.contracts import (
     ALL_TARGET_KINDS,
     CALLABLE_TARGET_KINDS,
+    Confidence,
     Diagnostic,
+    ExceptionEvidence,
     ExceptionFact,
     LintTarget,
     RuleOptionDescriptor,

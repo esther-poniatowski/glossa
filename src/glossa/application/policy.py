@@ -7,7 +7,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping
 
 from glossa.application.configuration import GlossaConfig, RuleSelection
-from glossa.application.contracts import RulePolicy, Severity
+from glossa.domain.contracts import RulePolicy, Severity
 
 if TYPE_CHECKING:
     from glossa.domain.rules import RuleMetadata

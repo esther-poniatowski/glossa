@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from glossa.application.contracts import LintTarget, ParameterFact, TargetKind
+from glossa.domain.contracts import LintTarget, ParameterFact, TargetKind
 
 _EXCLUDED_PARAM_NAMES: frozenset[str] = frozenset({"self", "cls"})
 

@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
-from glossa.application.contracts.core import (
+from glossa.domain.contracts.core import (
     SourceRef,
     TargetKind,
     TextSpan,
     Visibility,
 )
+
+
+class Confidence(Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class ExceptionEvidence(Enum):
+    RAISE = "raise"
+    RERAISE = "reraise"
+    DOCUMENTED_CONTRACT = "documented_contract"
 
 
 @dataclass(frozen=True)
@@ -48,14 +61,14 @@ class SignatureFacts:
 @dataclass(frozen=True)
 class ExceptionFact:
     type_name: str
-    evidence: Literal["raise", "reraise", "documented_contract"]
-    confidence: Literal["high", "medium", "low"]
+    evidence: ExceptionEvidence
+    confidence: Confidence
 
 
 @dataclass(frozen=True)
 class WarningFact:
     type_name: str
-    confidence: Literal["high", "medium", "low"]
+    confidence: Confidence
 
 
 @dataclass(frozen=True)
