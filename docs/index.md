@@ -1,21 +1,23 @@
 # glossa
 
-Welcome to the glossa documentation.
+Lints and fixes Python docstrings to follow NumPy-style conventions.
 
 ```{toctree}
 :maxdepth: 2
 :caption: User Guide
 
-guide/getting-started
-guide/configuration
+guide/installation
+guide/usage
 guide/cli-reference
+guide/configuration
 guide/docstring-guide
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: API Reference
+:caption: Reference
 
+architecture
 api/index
 ```
 

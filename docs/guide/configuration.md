@@ -1,11 +1,9 @@
 # Configuration
 
-This guide documents the target configuration model defined in the
-[Design Plan](../design-plan.md). The current codebase may implement it incrementally.
-
 ## Sources and Precedence
 
-Configuration is resolved in the following order, from lowest to highest precedence:
+Glossa resolves configuration from multiple sources. The following list orders
+them from lowest to highest precedence:
 
 1. Built-in defaults
 2. `pyproject.toml` or `.glossa.yaml`
@@ -78,19 +76,23 @@ output:
   show_source: true
 ```
 
+## Key Options
+
+| Option | Description | Default |
+| ------ | ----------- | ------- |
+| `rules.select` | Rule codes or groups to enable. | All |
+| `rules.ignore` | Rule codes to disable. | None |
+| `rules.per_file_ignores` | Disable specific rules for matching file globs. | None |
+| `rules.rule_options` | Resolve ambiguous guide policies explicitly. | None |
+| `fix.apply` | Control fix behavior: `disabled`, `safe`, or `unsafe`. | `safe` |
+| `suppressions.inline_enabled` | Enable inline `glossa: ignore=` directives. | `true` |
+| `output.format` | Output format (`text` or `json`). | `text` |
+
 ## Inline Suppressions
 
-Inline suppressions are attached to a module header or target definition:
+Inline suppressions attach to a module header or target definition:
 
 ```python
 def render(config: Config) -> str:  # glossa: ignore=D200,D205
     """Returns the rendered text"""
 ```
-
-## Key Concepts
-
-- `rules.select` and `rules.ignore` control which rules are active.
-- `severity_overrides` changes the diagnostic level of specific rules.
-- `per_file_ignores` disables rules for matching file globs.
-- `rule_options` turns ambiguous guide language into explicit policy.
-- `fix.apply` distinguishes disabled fixes, validated safe fixes, and explicitly unsafe modes.
