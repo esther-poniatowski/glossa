@@ -2,7 +2,7 @@
 
 ## Global Options
 
-```
+```sh
 glossa [OPTIONS] COMMAND [ARGS]
 ```
 
@@ -10,7 +10,6 @@ glossa [OPTIONS] COMMAND [ARGS]
 | ------ | ----------- |
 | `--version`, `-v` | Display the version and exit. |
 | `--help` | Display the help message and exit. |
-| `--config PATH` | Read configuration from an explicit file. |
 
 ## Commands
 
@@ -22,14 +21,16 @@ Lint Python files and report diagnostics.
 glossa lint src/
 glossa lint src/ tests/ --select D1xx,D4xx
 glossa lint src/ --ignore D205 --format json
+glossa lint src/ --no-color
 ```
 
 | Option | Description | Default |
 | ------ | ----------- | ------- |
+| `--config`, `-c` PATH | Path to configuration file. | Auto-detected |
 | `--select CODES` | Enable only the specified rules (codes or groups like `D1xx`). | All |
 | `--ignore CODES` | Disable the specified rules. | None |
-| `--format text\|json` | Output format. | `text` |
-| `--config PATH` | Path to configuration file. | Auto-detected |
+| `--format`, `-f` `text\|json` | Output format. | `text` |
+| `--no-color` | Disable colored output. | Off |
 
 ### `glossa fix <paths>...`
 
@@ -37,24 +38,28 @@ Apply validated automatic fixes in place.
 
 ```sh
 glossa fix src/
-glossa fix src/ --diff
-glossa fix src/ --select D4xx
+glossa fix src/ --dry-run
+glossa fix src/ -c custom.toml
 ```
 
 | Option | Description | Default |
 | ------ | ----------- | ------- |
-| `--select CODES` | Apply only fixes from the specified rules. | All fixable |
-| `--diff` | Print a unified diff instead of modifying files. | Off |
-| `--check` | Exit non-zero if fixes are available (dry-run for CI). | Off |
+| `--config`, `-c` PATH | Path to configuration file. | Auto-detected |
+| `--dry-run` | List fixable issues without modifying files. | Off |
 
 ### `glossa check <paths>...`
 
-Run `lint` in CI mode. The command exits with a non-zero code when diagnostics or
-pending fixes exist.
+Run `lint` in CI mode. The command exits with a non-zero code when fixable
+issues exist.
 
 ```sh
 glossa check src/
+glossa check src/ -c custom.toml
 ```
+
+| Option | Description | Default |
+| ------ | ----------- | ------- |
+| `--config`, `-c` PATH | Path to configuration file. | Auto-detected |
 
 ### `glossa info`
 
@@ -68,8 +73,7 @@ glossa info
 
 | Exit Code | Meaning |
 | --------- | ------- |
-| `0` | Successful run with no diagnostics or pending fixes. |
-| `1` | Successful run with diagnostics or available fixes. |
+| `0` | No diagnostics or pending fixes. |
+| `1` | Diagnostics or available fixes detected. |
 | `2` | Usage or configuration error. |
-| `3` | Fatal operational error. |
 | `4` | Partial failure: some files processed, some failed. |
