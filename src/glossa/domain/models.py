@@ -46,6 +46,7 @@ class ProseSectionKind(Enum):
     NOTES = "Notes"
     WARNINGS = "Warnings"
     EXAMPLES = "Examples"
+    USAGE = "Usage"
 
 
 class InventorySectionKind(Enum):

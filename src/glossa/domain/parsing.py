@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Callable, Literal, Sequence
+from typing import Callable, Literal, Mapping, Sequence
 
 from glossa.domain.models import (
     DeprecationDirective,
@@ -52,6 +52,7 @@ _PROSE_SECTION_TITLES: dict[str, ProseSectionKind] = {
     "Notes": ProseSectionKind.NOTES,
     "Warnings": ProseSectionKind.WARNINGS,
     "Examples": ProseSectionKind.EXAMPLES,
+    "Usage": ProseSectionKind.USAGE,
 }
 
 _INVENTORY_SECTION_TITLES: dict[str, InventorySectionKind] = {
@@ -428,8 +429,18 @@ _BUILTIN_SECTION_PARSERS: list[SectionParser] = [
 
 def _build_dispatch(
     extra_parsers: Sequence[SectionParser] | None,
+    section_aliases: Mapping[str, str] | None = None,
 ) -> dict[str, SectionParseFunc]:
-    """Return a title → parse-function dict from built-ins plus any extras."""
+    """Return a title → parse-function dict from built-ins plus any extras.
+
+    Parameters
+    ----------
+    extra_parsers : Sequence[SectionParser] | None
+        Additional section parsers beyond built-ins.
+    section_aliases : Mapping[str, str] | None
+        Maps custom titles to known section titles (e.g. ``{"Hint": "Notes"}``).
+        The alias inherits the parse function and kind of its target.
+    """
     dispatch: dict[str, SectionParseFunc] = {}
     for entry in _BUILTIN_SECTION_PARSERS:
         for title in entry.titles:
@@ -438,7 +449,27 @@ def _build_dispatch(
         for entry in extra_parsers:
             for title in entry.titles:
                 dispatch[title] = entry.parse
+    if section_aliases:
+        for alias, target in section_aliases.items():
+            if target in dispatch:
+                dispatch[alias] = dispatch[target]
     return dispatch
+
+
+def _register_aliases(section_aliases: Mapping[str, str]) -> None:
+    """Register user-defined section aliases into the title lookup dicts.
+
+    Must be called before parsing so that section parse functions can
+    resolve the kind of aliased titles.
+    """
+    for alias, target in section_aliases.items():
+        if target in _TYPED_SECTION_TITLES:
+            _TYPED_SECTION_TITLES[alias] = _TYPED_SECTION_TITLES[target]
+        elif target in _PROSE_SECTION_TITLES:
+            _PROSE_SECTION_TITLES[alias] = _PROSE_SECTION_TITLES[target]
+        elif target in _INVENTORY_SECTION_TITLES:
+            _INVENTORY_SECTION_TITLES[alias] = _INVENTORY_SECTION_TITLES[target]
+        _ALL_KNOWN_TITLES.add(alias)
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +547,7 @@ def parse_docstring(
     string_prefix: str,
     indentation: str,
     extra_parsers: Sequence[SectionParser] | None = None,
+    section_aliases: Mapping[str, str] | None = None,
 ) -> ParsedDocstring:
     """Parse a raw docstring body into a ``ParsedDocstring``.
 
@@ -539,7 +571,9 @@ def parse_docstring(
     ParsedDocstring
         The parsed docstring with syntax, summary, sections, and issues.
     """
-    dispatch = _build_dispatch(extra_parsers)
+    if section_aliases:
+        _register_aliases(section_aliases)
+    dispatch = _build_dispatch(extra_parsers, section_aliases)
 
     if not body.strip():
         syntax = DocstringSyntax(

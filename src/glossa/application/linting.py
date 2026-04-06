@@ -63,6 +63,7 @@ def analyze_file(
                 quote=extracted.docstring.quote,
                 string_prefix=extracted.docstring.string_prefix,
                 indentation=extracted.docstring.indentation,
+                section_aliases=config.parsing.section_aliases or None,
             )
         parsed_map[extracted.ref.symbol_path] = (extracted, parsed)
 

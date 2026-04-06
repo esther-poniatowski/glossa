@@ -24,6 +24,7 @@ DEFAULT_SECTION_ORDER: tuple[str, ...] = (
     "Raises",
     "Warns",
     "Attributes",
+    "Usage",
     "Notes",
     "Warnings",
     "See Also",
@@ -75,11 +76,17 @@ class OutputOptions:
 
 
 @dataclass(frozen=True)
+class ParsingOptions:
+    section_aliases: Mapping[str, str]
+
+
+@dataclass(frozen=True)
 class GlossaConfig:
     rules: RuleSelection
     suppressions: SuppressionPolicy
     fix: FixPolicy
     output: OutputOptions
+    parsing: ParsingOptions
 
 
 def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
@@ -88,6 +95,7 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
     suppressions_raw = _mapping(raw.get("suppressions", {}), "suppressions")
     fix_raw = _mapping(raw.get("fix", {}), "fix")
     output_raw = _mapping(raw.get("output", {}), "output")
+    parsing_raw = _mapping(raw.get("parsing", {}), "parsing")
 
     severity_overrides_raw = _mapping(
         rules_raw.get("severity_overrides", {}), "rules.severity_overrides"
@@ -165,11 +173,25 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
         show_source=_bool(output_raw.get("show_source", True), "output.show_source"),
     )
 
+    section_aliases_raw = _mapping(
+        parsing_raw.get("section_aliases", {}), "parsing.section_aliases"
+    )
+    section_aliases: dict[str, str] = {}
+    for alias, target in section_aliases_raw.items():
+        section_aliases[_string(alias, f"parsing.section_aliases key")] = _string(
+            target, f"parsing.section_aliases.{alias}"
+        )
+
+    parsing = ParsingOptions(
+        section_aliases=_freeze_mapping(section_aliases),
+    )
+
     return GlossaConfig(
         rules=rules,
         suppressions=suppressions,
         fix=fix,
         output=output,
+        parsing=parsing,
     )
 
 
