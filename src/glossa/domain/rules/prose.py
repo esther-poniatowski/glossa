@@ -6,7 +6,7 @@ import re
 
 from glossa.domain.contracts import (
     ALL_TARGET_KINDS,
-    NON_PROPERTY_KINDS,
+    CALLABLE_TARGET_KINDS,
     Diagnostic,
     DocstringEdit,
     EditKind,
@@ -59,7 +59,7 @@ class D200:
         group=_GROUP,
         description="Summary line is not imperative where imperative voice is required.",
         default_severity=Severity.CONVENTION,
-        applies_to=NON_PROPERTY_KINDS,
+        applies_to=CALLABLE_TARGET_KINDS,
         fixable=False,
     )
 
@@ -196,8 +196,14 @@ class D202:
         if not has_body:
             return ()
 
+        # Check for blank line after summary using the summary span end offset.
         raw_body = parsed.syntax.raw_body
-        if _has_blank_line_after_summary(raw_body):
+        end = summary.span.end_offset
+        remaining = raw_body[end:]
+        # The next non-whitespace-on-line character after the summary should be
+        # preceded by at least one blank line.
+        lines_after = remaining.split("\n")
+        if len(lines_after) >= 2 and not lines_after[1].strip():
             return ()
 
         return (
@@ -212,6 +218,43 @@ class D202:
 # ---------------------------------------------------------------------------
 # first-person-voice
 # ---------------------------------------------------------------------------
+
+_CODE_LINE_RE = re.compile(r"^\s*(>>>|\.\.\.)\s")
+_RST_CODE_BLOCK_RE = re.compile(r"^\s*\.\.\s+(code-block|code|sourcecode)::")
+
+
+def _filter_code_lines(lines: tuple[str, ...]) -> str:
+    """Join text lines, excluding code examples.
+
+    Filters out interactive prompts (>>>), RST code-block directives, and
+    their indented continuation lines.
+    """
+    result: list[str] = []
+    in_code_block = False
+    code_block_indent: int | None = None
+    for line in lines:
+        # Interactive Python prompts
+        if _CODE_LINE_RE.match(line):
+            in_code_block = True
+            code_block_indent = None
+            continue
+        # RST code-block directives
+        if _RST_CODE_BLOCK_RE.match(line):
+            in_code_block = True
+            code_block_indent = len(line) - len(line.lstrip())
+            continue
+        if in_code_block:
+            if line.strip() == "":
+                continue
+            line_indent = len(line) - len(line.lstrip())
+            if code_block_indent is not None and line_indent > code_block_indent:
+                continue
+            if code_block_indent is None and line.startswith("    "):
+                continue
+            in_code_block = False
+        result.append(line)
+    return "\n".join(result)
+
 
 _FIRST_PERSON_RE = re.compile(r"\b(I|my|me|we|our|us)\b")
 
@@ -235,7 +278,7 @@ class D203:
     ) -> tuple[Diagnostic, ...]:
         if target.docstring is None:
             return ()
-        text = "\n".join(target.docstring.all_text_lines())
+        text = _filter_code_lines(target.docstring.all_text_lines())
         match = _FIRST_PERSON_RE.search(text)
         if match is None:
             return ()
@@ -274,7 +317,7 @@ class D204:
     ) -> tuple[Diagnostic, ...]:
         if target.docstring is None:
             return ()
-        text = "\n".join(target.docstring.all_text_lines())
+        text = _filter_code_lines(target.docstring.all_text_lines())
         match = _SECOND_PERSON_RE.search(text)
         if match is None:
             return ()
