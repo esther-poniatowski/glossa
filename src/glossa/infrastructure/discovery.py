@@ -11,32 +11,40 @@ class FileDiscovery:
     """Walk configured paths and yield Python source files."""
 
     def __init__(self, base_path: Path) -> None:
-        self._base_path = base_path
+        self._base_path = base_path.resolve()
+
+    def _make_source_id(self, full_path: Path) -> str:
+        """Return a relative POSIX string if inside base_path, else absolute."""
+        full = full_path.resolve()
+        if full.is_relative_to(self._base_path):
+            return full.relative_to(self._base_path).as_posix()
+        return str(full)
 
     def discover(self, paths: Sequence[str], exclude: Sequence[str] = ()) -> Iterator[str]:
-        """Yield project-relative POSIX path strings for Python source files."""
+        """Yield source-id strings for Python source files."""
         for path_str in paths:
-            target = self._base_path / path_str
+            target = Path(path_str) if Path(path_str).is_absolute() else self._base_path / path_str
+            target = target.resolve()
+
             if target.is_file() and target.suffix == ".py":
-                rel = target.relative_to(self._base_path).as_posix()
-                if not self._is_excluded(rel, exclude):
-                    yield rel
+                source_id = self._make_source_id(target)
+                if not self._is_excluded(source_id, exclude):
+                    yield source_id
             elif target.is_dir():
                 for root, dirs, files in os.walk(target):
-                    # Filter excluded directories
-                    dirs[:] = [
+                    dirs[:] = sorted(
                         d for d in dirs
                         if not self._is_excluded(
-                            Path(root, d).relative_to(self._base_path).as_posix() + "/",
+                            self._make_source_id(Path(root, d)) + "/",
                             exclude,
                         )
-                    ]
+                    )
                     for f in sorted(files):
                         if f.endswith(".py"):
                             full = Path(root) / f
-                            rel = full.relative_to(self._base_path).as_posix()
-                            if not self._is_excluded(rel, exclude):
-                                yield rel
+                            source_id = self._make_source_id(full)
+                            if not self._is_excluded(source_id, exclude):
+                                yield source_id
             else:
                 raise DiscoveryError(f"Path does not exist: {path_str}")
 
