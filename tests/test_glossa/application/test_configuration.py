@@ -24,15 +24,15 @@ def test_resolve_config_stores_rule_options_raw() -> None:
         {
             "rules": {
                 "rule_options": {
-                    "D102": {"include_test_functions": True},
-                    "D306": {"api_entry_modules": ["src/**"]},
+                    "missing-callable-docstring": {"include_test_functions": True},
+                    "examples-in-non-entry-module": {"api_entry_modules": ["src/**"]},
                 }
             },
         }
     )
-    assert config.rules.rule_options["D102"]["include_test_functions"] is True
+    assert config.rules.rule_options["missing-callable-docstring"]["include_test_functions"] is True
     # raw list preserved — coercion to tuple occurs in _resolve_options via validator
-    assert config.rules.rule_options["D306"]["api_entry_modules"] == ["src/**"]
+    assert config.rules.rule_options["examples-in-non-entry-module"]["api_entry_modules"] == ["src/**"]
 
 
 def test_resolve_config_builds_typed_values() -> None:
@@ -42,7 +42,7 @@ def test_resolve_config_builds_typed_values() -> None:
             "fix": {"apply": "unsafe"},
             "rules": {
                 "rule_options": {
-                    "D102": {"include_test_functions": True},
+                    "missing-callable-docstring": {"include_test_functions": True},
                 }
             },
         }
@@ -50,4 +50,4 @@ def test_resolve_config_builds_typed_values() -> None:
 
     assert config.output.format is OutputFormat.JSON
     assert config.fix.apply is FixApplyMode.UNSAFE
-    assert config.rules.rule_options["D102"]["include_test_functions"] is True
+    assert config.rules.rule_options["missing-callable-docstring"]["include_test_functions"] is True

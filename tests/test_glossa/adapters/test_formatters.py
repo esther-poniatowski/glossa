@@ -34,7 +34,7 @@ def _span(start_line: int = 1, start_col: int = 0, end_line: int = 1, end_col: i
 
 
 def _diagnostic(
-    code: str = "D100",
+    rule: str = "missing-module-docstring",
     message: str = "Missing docstring.",
     severity: Severity = Severity.WARNING,
     source_id: str = "src/foo.py",
@@ -43,7 +43,7 @@ def _diagnostic(
     fix: FixPlan | None = None,
 ) -> Diagnostic:
     return Diagnostic(
-        code=code,
+        rule=rule,
         message=message,
         severity=severity,
         target=_source_ref(source_id, symbol_path),
@@ -57,7 +57,7 @@ def _fix_plan(source_id: str = "src/foo.py") -> FixPlan:
         description="Add missing docstring",
         target=_source_ref(source_id),
         edits=(),
-        affected_rules=("D100",),
+        affected_rules=("missing-module-docstring",),
     )
 
 
@@ -75,14 +75,14 @@ def test_format_text_empty() -> None:
 def test_format_text_single() -> None:
     """A single diagnostic is formatted with its code, message, and severity."""
     diag = _diagnostic(
-        code="D200",
+        rule="non-imperative-summary",
         message="One-line docstring should fit on one line.",
         severity=Severity.WARNING,
         span=_span(3, 4, 3, 40),
     )
     result = format_text([diag], )
 
-    assert "D200" in result
+    assert "non-imperative-summary" in result
     assert "One-line docstring should fit on one line." in result
     assert "WARNING" in result
 
@@ -90,7 +90,7 @@ def test_format_text_single() -> None:
 def test_format_text_fixable() -> None:
     """A diagnostic with a fix plan includes '(fixable)' in the output."""
     diag = _diagnostic(
-        code="D100",
+        rule="missing-module-docstring",
         message="Missing docstring in public module.",
         fix=_fix_plan(),
     )
@@ -115,7 +115,7 @@ def test_format_json_empty() -> None:
 def test_format_json_single() -> None:
     """A single diagnostic produces the expected JSON structure."""
     diag = _diagnostic(
-        code="D300",
+        rule="triple-double-quotes",
         message="Use triple double quotes.",
         severity=Severity.CONVENTION,
         source_id="src/bar.py",
@@ -127,7 +127,7 @@ def test_format_json_single() -> None:
 
     assert data["count"] == 1
     item = data["diagnostics"][0]
-    assert item["code"] == "D300"
+    assert item["rule"] == "triple-double-quotes"
     assert item["message"] == "Use triple double quotes."
     assert item["severity"] == "convention"
     assert item["source_id"] == "src/bar.py"
@@ -139,8 +139,8 @@ def test_format_json_single() -> None:
 def test_format_json_roundtrip() -> None:
     """json.loads(format_json(...)) produces a valid dict with the expected top-level keys."""
     diagnostics = [
-        _diagnostic("D100", "Missing module docstring.", Severity.WARNING),
-        _diagnostic("D200", "One-liner too long.", Severity.CONVENTION),
+        _diagnostic("missing-module-docstring", "Missing module docstring.", Severity.WARNING),
+        _diagnostic("non-imperative-summary", "One-liner too long.", Severity.CONVENTION),
     ]
     result = format_json(diagnostics)
     data = json.loads(result)

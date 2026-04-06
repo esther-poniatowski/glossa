@@ -9,6 +9,7 @@ from glossa.application.configuration import (
     GlossaConfig,
     OutputFormat,
     OutputOptions,
+    ParsingOptions,
     RuleSelection,
     SuppressionPolicy,
 )
@@ -42,17 +43,18 @@ def _config(*select: str) -> GlossaConfig:
             color=False,
             show_source=True,
         ),
+        parsing=ParsingOptions(section_aliases={}),
     )
 
 
 def test_definition_line_suppression_disables_missing_docstring_rule() -> None:
-    source = "def render():  # glossa: ignore=D102\n    return 1\n"
+    source = "def render():  # glossa: ignore=missing-callable-docstring\n    return 1\n"
 
     analyzed = analyze_file(
         source_id="sample.py",
         source_text=source,
         extraction_port=ASTExtractor(),
-        config=_config("D102"),
+        config=_config("missing-callable-docstring"),
         registry=RuleRegistry(builtins=(D102(),), plugins=()),
     )
 
@@ -60,13 +62,13 @@ def test_definition_line_suppression_disables_missing_docstring_rule() -> None:
 
 
 def test_module_header_suppression_disables_missing_module_docstring_rule() -> None:
-    source = "# glossa: ignore=D100\nx = 1\n"
+    source = "# glossa: ignore=missing-module-docstring\nx = 1\n"
 
     analyzed = analyze_file(
         source_id="sample.py",
         source_text=source,
         extraction_port=ASTExtractor(),
-        config=_config("D100"),
+        config=_config("missing-module-docstring"),
         registry=RuleRegistry(builtins=(D100(),), plugins=()),
     )
 

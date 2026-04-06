@@ -123,7 +123,7 @@ def test_d100_missing_module_docstring():
     target = make_target(kind=TargetKind.MODULE, visibility=Visibility.PUBLIC, docstring=None)
     diagnostics = D100().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D100"
+    assert diagnostics[0].rule == "missing-module-docstring"
 
 
 def test_d100_present_module_docstring():
@@ -151,7 +151,7 @@ def test_d101_missing_class_docstring():
     target = make_target(kind=TargetKind.CLASS, visibility=Visibility.PUBLIC, docstring=None)
     diagnostics = D101().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D101"
+    assert diagnostics[0].rule == "missing-class-docstring"
 
 
 def test_d101_present_class_docstring():
@@ -174,7 +174,7 @@ def test_d102_missing_callable_docstring():
     target = make_target(kind=TargetKind.FUNCTION, visibility=Visibility.PUBLIC, docstring=None)
     diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D102"
+    assert diagnostics[0].rule == "missing-callable-docstring"
 
 
 def test_d102_present_callable_docstring():
@@ -256,7 +256,7 @@ def test_d103_missing_parameters_section():
     )
     diagnostics = D103().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D103"
+    assert diagnostics[0].rule == "missing-parameters-section"
 
 
 def test_d103_parameters_present():
@@ -322,7 +322,7 @@ def test_d104_missing_returns():
     )
     diagnostics = D104().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D104"
+    assert diagnostics[0].rule == "missing-returns-section"
 
 
 def test_d104_returns_section_present():
@@ -368,7 +368,7 @@ def test_d105_missing_yields():
     )
     diagnostics = D105().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D105"
+    assert diagnostics[0].rule == "missing-yields-section"
 
 
 def test_d105_yields_section_present():
@@ -404,7 +404,7 @@ def test_d106_missing_raises():
     )
     diagnostics = D106().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D106"
+    assert diagnostics[0].rule == "missing-raises-section"
 
 
 def test_d106_raises_section_present():
@@ -476,8 +476,8 @@ def test_d108_missing_inventory():
         module_symbols=_make_symbols(n_classes=2, n_functions=2),
     )
     diagnostics = rule.evaluate(target, make_context(rule=rule))
-    codes = [d.code for d in diagnostics]
-    assert codes.count("D108") == 2
+    rules = [d.rule for d in diagnostics]
+    assert rules.count("missing-module-inventory") == 2
 
 
 def test_d108_below_threshold_no_fire():

@@ -9,6 +9,7 @@ from glossa.application.configuration import (
     GlossaConfig,
     OutputFormat,
     OutputOptions,
+    ParsingOptions,
     RuleSelection,
     SuppressionPolicy,
 )
@@ -22,7 +23,7 @@ from glossa.infrastructure.extraction import ASTExtractor
 def _config() -> GlossaConfig:
     return GlossaConfig(
         rules=RuleSelection(
-            select=("D201",),
+            select=("missing-period",),
             ignore=(),
             severity_overrides={},
             per_file_ignores={},
@@ -43,6 +44,7 @@ def _config() -> GlossaConfig:
             color=False,
             show_source=True,
         ),
+        parsing=ParsingOptions(section_aliases={}),
     )
 
 

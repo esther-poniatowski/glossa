@@ -106,7 +106,7 @@ def test_d200_non_imperative_third_person():
     target = make_target(docstring=parsed("Returns the value."))
     diagnostics = D200().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D200"
+    assert diagnostics[0].rule == "non-imperative-summary"
 
 
 def test_d200_non_imperative_gerund():
@@ -114,7 +114,7 @@ def test_d200_non_imperative_gerund():
     target = make_target(docstring=parsed("Returning the value."))
     diagnostics = D200().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D200"
+    assert diagnostics[0].rule == "non-imperative-summary"
 
 
 
@@ -129,7 +129,7 @@ def test_d201_missing_period():
     target = make_target(docstring=parsed("Do something"))
     diagnostics = D201().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D201"
+    assert diagnostics[0].rule == "missing-period"
 
 
 def test_d201_period_present():
@@ -169,7 +169,7 @@ def test_d202_missing_blank_line():
     target = make_target(docstring=parsed(doc_text))
     diagnostics = D202().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D202"
+    assert diagnostics[0].rule == "missing-blank-after-summary"
 
 
 def test_d202_blank_line_present():
@@ -204,7 +204,7 @@ def test_d203_first_person():
     target = make_target(docstring=parsed("I compute the sum."))
     diagnostics = D203().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D203"
+    assert diagnostics[0].rule == "first-person-voice"
 
 
 def test_d203_third_person_no_fire():
@@ -219,7 +219,7 @@ def test_d203_my_fires():
     target = make_target(docstring=parsed("Store my result."))
     diagnostics = D203().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D203"
+    assert diagnostics[0].rule == "first-person-voice"
 
 
 
@@ -233,7 +233,7 @@ def test_d204_second_person():
     target = make_target(docstring=parsed("You should call this."))
     diagnostics = D204().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D204"
+    assert diagnostics[0].rule == "second-person-voice"
 
 
 def test_d204_your_fires():
@@ -241,7 +241,7 @@ def test_d204_your_fires():
     target = make_target(docstring=parsed("Pass your config."))
     diagnostics = D204().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D204"
+    assert diagnostics[0].rule == "second-person-voice"
 
 
 def test_d204_third_person_no_fire():
@@ -263,7 +263,7 @@ def test_d205_markdown_heading():
     target = make_target(docstring=parsed(doc_text))
     diagnostics = D205().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D205"
+    assert diagnostics[0].rule == "markdown-in-docstring"
 
 
 def test_d205_markdown_link():
@@ -272,7 +272,7 @@ def test_d205_markdown_link():
     target = make_target(docstring=parsed(doc_text))
     diagnostics = D205().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D205"
+    assert diagnostics[0].rule == "markdown-in-docstring"
 
 
 def test_d205_markdown_fence():
@@ -281,7 +281,7 @@ def test_d205_markdown_fence():
     target = make_target(docstring=parsed(doc_text))
     diagnostics = D205().evaluate(target, make_context())
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "D205"
+    assert diagnostics[0].rule == "markdown-in-docstring"
 
 
 def test_d205_rst_is_fine():
