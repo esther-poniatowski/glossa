@@ -11,7 +11,11 @@ from glossa.domain.contracts import Severity
 from glossa.errors import ConfigurationError
 
 
-DEFAULT_RULE_SELECT = ("D1xx", "D2xx", "D3xx", "D4xx", "D5xx")
+DEFAULT_PATHS: tuple[str, ...] = ("src",)
+
+DEFAULT_RULE_SELECT = ("presence", "prose", "structure", "typed-entries", "anti-patterns")
+
+DEFAULT_RULE_IGNORE: tuple[str, ...] = ("examples-in-non-entry-module",)
 
 DEFAULT_SECTION_ORDER: tuple[str, ...] = (
     "Parameters",
@@ -98,7 +102,7 @@ def resolve_config(raw: Mapping[str, object]) -> GlossaConfig:
             rules_raw.get("select", DEFAULT_RULE_SELECT),
             "rules.select",
         ),
-        ignore=_string_tuple(rules_raw.get("ignore", ()), "rules.ignore"),
+        ignore=_string_tuple(rules_raw.get("ignore", DEFAULT_RULE_IGNORE), "rules.ignore"),
         severity_overrides=cast(
             Mapping[str, Severity],
             _freeze_mapping(

@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from glossa import __version__
-from glossa.application.configuration import OutputFormat
+from glossa.application.configuration import DEFAULT_PATHS, OutputFormat
 
 app = typer.Typer(
     name="glossa",
@@ -66,8 +66,8 @@ def main_callback(
 
 @app.command()
 def lint(
-    paths: list[str] = typer.Argument(
-        default=["src"], help="Paths to lint (files or directories)."
+    paths: Optional[list[str]] = typer.Argument(
+        default=None, help="Paths to lint (files or directories)."
     ),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to configuration file."
@@ -88,6 +88,7 @@ def lint(
     """Lint Python source files for docstring issues."""
     from glossa.adapters.formatters import format_json, format_text
 
+    paths = paths or list(DEFAULT_PATHS)
     service = _bootstrap_or_exit(config)
     format_override = _output_format(output_format) if output_format is not None else None
     result = service.lint_paths(
@@ -124,8 +125,8 @@ def lint(
 
 @app.command()
 def fix(
-    paths: list[str] = typer.Argument(
-        default=["src"], help="Paths to fix (files or directories)."
+    paths: Optional[list[str]] = typer.Argument(
+        default=None, help="Paths to fix (files or directories)."
     ),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to configuration file."
@@ -135,6 +136,7 @@ def fix(
     ),
 ) -> None:
     """Apply automatic fixes to docstring issues."""
+    paths = paths or list(DEFAULT_PATHS)
     service = _bootstrap_or_exit(config)
     result = service.fix_paths(paths, dry_run=dry_run)
 
@@ -152,7 +154,7 @@ def fix(
     if dry_run:
         console.print(f"Found {len(fixable)} fixable issue(s):")
         for d in fixable:
-            console.print(f"  {d.code}: {d.message} [{d.target.source_id}]")
+            console.print(f"  {d.rule}: {d.message} \\[{d.target.source_id}]")
         raise typer.Exit(code=4 if result.operational_issues else 1)
 
     console.print(f"Applied {result.applied_count} fix(es).")
@@ -168,14 +170,15 @@ def fix(
 
 @app.command()
 def check(
-    paths: list[str] = typer.Argument(
-        default=["src"], help="Paths to check."
+    paths: Optional[list[str]] = typer.Argument(
+        default=None, help="Paths to check."
     ),
     config: Optional[str] = typer.Option(
         None, "--config", "-c", help="Path to configuration file."
     ),
 ) -> None:
     """Check if files need fixing (non-zero exit if fixes available)."""
+    paths = paths or list(DEFAULT_PATHS)
     service = _bootstrap_or_exit(config)
     result = service.check_paths(paths)
     _report_issues(result.operational_issues)
