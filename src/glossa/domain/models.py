@@ -100,10 +100,11 @@ class TypedSection:
     underline_span: DocstringSpan
     entries: tuple[TypedEntry, ...]
     span: DocstringSpan
+    source_title: str = ""
 
     @property
     def section_title(self) -> str:
-        return self.kind.value
+        return self.source_title or self.kind.value
 
     @property
     def body_text_lines(self) -> tuple[str, ...]:

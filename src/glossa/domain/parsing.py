@@ -39,6 +39,8 @@ from glossa.domain.models import (
 _TYPED_SECTION_TITLES: dict[str, TypedSectionKind] = {
     "Parameters": TypedSectionKind.PARAMETERS,
     "Params": TypedSectionKind.PARAMETERS,
+    "Arguments": TypedSectionKind.PARAMETERS,
+    "Args": TypedSectionKind.PARAMETERS,
     "Returns": TypedSectionKind.RETURNS,
     "Yields": TypedSectionKind.YIELDS,
     "Attributes": TypedSectionKind.ATTRIBUTES,
@@ -363,6 +365,7 @@ def _parse_typed_section(ctx: SectionParseContext) -> TypedSection:
         underline_span=ctx.underline_span,
         entries=entries,
         span=ctx.section_span,
+        source_title=ctx.title,
     )
 
 
@@ -573,6 +576,17 @@ def parse_docstring(
 
     summary: Summary | None = None
     content_start = leading_blank
+
+    # Skip leading reST title + underline (e.g. "module.name\n==========")
+    if (
+        content_start + 1 < len(lines)
+        and lines[content_start].strip()
+        and re.match(r"^\s*[=]{3,}\s*$", lines[content_start + 1])
+    ):
+        content_start += 2
+        while content_start < len(lines) and not lines[content_start].strip():
+            content_start += 1
+
     if content_start < len(lines) and lines[content_start].strip():
         summary_text = lines[content_start].strip()
         summary_span = _span_of_lines(lines, content_start, content_start + 1)
