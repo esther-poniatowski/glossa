@@ -55,11 +55,11 @@ def bootstrap(
 def _validate_rule_options(config: GlossaConfig, registry: RuleRegistry) -> None:
     """Validate user-supplied rule_options against each rule's option_schema."""
     for rule in registry.all_rules():
-        code = rule.metadata.code
-        user_options = config.rules.rule_options.get(code, {})
+        name = rule.metadata.name
+        user_options = config.rules.rule_options.get(name, {})
         for descriptor in rule.metadata.option_schema:
             if descriptor.key in user_options:
-                path = f"rules.rule_options.{code}.{descriptor.key}"
+                path = f"rules.rule_options.{name}.{descriptor.key}"
                 try:
                     descriptor.validator(user_options[descriptor.key], path)
                 except ConfigurationError:

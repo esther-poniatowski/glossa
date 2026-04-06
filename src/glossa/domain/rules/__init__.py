@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class RuleMetadata:
-    code: str
+    name: str
+    group: str
     description: str
     default_severity: Severity
     applies_to: frozenset[TargetKind]
@@ -114,7 +115,7 @@ def make_diagnostic(
         normalized = span
 
     return Diagnostic(
-        code=rule.metadata.code,
+        rule=rule.metadata.name,
         message=message,
         severity=context.policy.severity,
         target=target.ref,

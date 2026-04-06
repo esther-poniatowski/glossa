@@ -15,42 +15,42 @@ TRACEABILITY_MATRIX: tuple[TraceEntry, ...] = (
     TraceEntry(
         guide_clause="1.1 NumPy style required",
         status="enforced",
-        coverage=("D300", "D301", "D305", "D503"),
+        coverage=("malformed-underline", "section-order", "rst-directive-instead-of-section", "rst-note-warning-directive"),
     ),
     TraceEntry(
         guide_clause="1.2 Imperative mood and impersonal voice",
         status="enforced",
-        coverage=("D200", "D203", "D204"),
+        coverage=("non-imperative-summary", "first-person-voice", "second-person-voice"),
     ),
     TraceEntry(
         guide_clause="1.3 Types in typed sections",
         status="enforced",
-        coverage=("D400", "D401", "D402", "D403", "D404", "D405"),
+        coverage=("missing-param-type", "param-type-mismatch", "missing-return-type", "return-type-mismatch", "yield-type-mismatch", "missing-attribute-type"),
     ),
     TraceEntry(
         guide_clause="1.4 Public docstring required",
         status="enforced",
-        coverage=("D100", "D101", "D102"),
+        coverage=("missing-module-docstring", "missing-class-docstring", "missing-callable-docstring"),
     ),
     TraceEntry(
         guide_clause="1.4 Constructor params on class",
         status="enforced",
-        coverage=("D103", "D110"),
+        coverage=("missing-parameters-section", "params-in-init-not-class"),
     ),
     TraceEntry(
         guide_clause="1.4 Private/test/special policy",
         status="enforced_via_config",
-        coverage=("D102", "D501"),
+        coverage=("missing-callable-docstring", "trivial-dunder-docstring"),
     ),
     TraceEntry(
         guide_clause="1.4 Trivial property optional",
         status="enforced_via_config",
-        coverage=("D102", "D104"),
+        coverage=("missing-callable-docstring", "missing-returns-section"),
     ),
     TraceEntry(
         guide_clause="2.2 Module inventory",
         status="enforced",
-        coverage=("D108",),
+        coverage=("missing-module-inventory",),
     ),
     TraceEntry(
         guide_clause="2.2 Module See Also",
@@ -60,12 +60,12 @@ TRACEABILITY_MATRIX: tuple[TraceEntry, ...] = (
     TraceEntry(
         guide_clause="2.2 No Examples in non-entry-point",
         status="enforced",
-        coverage=("D306",),
+        coverage=("examples-in-non-entry-module",),
     ),
     TraceEntry(
         guide_clause="3.2 Attributes section",
         status="enforced",
-        coverage=("D109", "D405"),
+        coverage=("missing-attributes-section", "missing-attribute-type"),
     ),
     TraceEntry(
         guide_clause="3.2 Class Examples",
@@ -75,22 +75,22 @@ TRACEABILITY_MATRIX: tuple[TraceEntry, ...] = (
     TraceEntry(
         guide_clause="4.2 Summary period and blank line",
         status="enforced",
-        coverage=("D201", "D202"),
+        coverage=("missing-period", "missing-blank-after-summary"),
     ),
     TraceEntry(
         guide_clause="4.2 Parameters required",
         status="enforced",
-        coverage=("D103", "D302", "D303"),
+        coverage=("missing-parameters-section", "undocumented-parameter", "extraneous-parameter"),
     ),
     TraceEntry(
         guide_clause="4.2 Returns required",
         status="enforced",
-        coverage=("D104", "D402", "D403", "D502"),
+        coverage=("missing-returns-section", "missing-return-type", "return-type-mismatch", "redundant-returns-none"),
     ),
     TraceEntry(
         guide_clause="4.2 Raises for public exceptions",
         status="enforced",
-        coverage=("D106",),
+        coverage=("missing-raises-section",),
     ),
     TraceEntry(
         guide_clause="4.2 See Also",
@@ -110,22 +110,22 @@ TRACEABILITY_MATRIX: tuple[TraceEntry, ...] = (
     TraceEntry(
         guide_clause="4.2 Deprecation directive",
         status="enforced",
-        coverage=("D111", "D304"),
+        coverage=("missing-deprecation-directive", "malformed-deprecation"),
     ),
     TraceEntry(
         guide_clause="4.2 Warns",
         status="enforced",
-        coverage=("D107",),
+        coverage=("missing-warns-section",),
     ),
     TraceEntry(
         guide_clause="4.2 Warnings prose section",
         status="enforced",
-        coverage=("D305", "D503"),
+        coverage=("rst-directive-instead-of-section", "rst-note-warning-directive"),
     ),
     TraceEntry(
         guide_clause="5.2 Simple properties",
         status="enforced",
-        coverage=("D200", "D104"),
+        coverage=("non-imperative-summary", "missing-returns-section"),
     ),
     TraceEntry(
         guide_clause="6 Inline comments",
@@ -135,50 +135,38 @@ TRACEABILITY_MATRIX: tuple[TraceEntry, ...] = (
     TraceEntry(
         guide_clause="7 Empty docstrings",
         status="enforced",
-        coverage=("D500",),
+        coverage=("empty-docstring",),
     ),
     TraceEntry(
         guide_clause="7 Trivial dunder docstrings",
         status="enforced",
-        coverage=("D501",),
+        coverage=("trivial-dunder-docstring",),
     ),
     TraceEntry(
         guide_clause="7 RST directives vs NumPy sections",
         status="enforced",
-        coverage=("D305", "D503"),
+        coverage=("rst-directive-instead-of-section", "rst-note-warning-directive"),
     ),
     TraceEntry(
         guide_clause="7 Markdown in docstrings",
         status="enforced",
-        coverage=("D205",),
+        coverage=("markdown-in-docstring",),
     ),
     TraceEntry(
         guide_clause="7 First-person voice",
         status="enforced",
-        coverage=("D203",),
+        coverage=("first-person-voice",),
     ),
     TraceEntry(
         guide_clause="7 Redundant Returns None",
         status="enforced",
-        coverage=("D502",),
+        coverage=("redundant-returns-none",),
     ),
 )
 
 
 def rules_for_clause(clause: str) -> tuple[str, ...]:
-    """Return the rule codes for a given guide clause.
-
-    Parameters
-    ----------
-    clause : str
-        The guide clause string to look up.
-
-    Returns
-    -------
-    tuple[str, ...]
-        The rule codes associated with the clause, or an empty tuple if the
-        clause is not found or is out of scope.
-    """
+    """Return the rule names for a given guide clause."""
     for entry in TRACEABILITY_MATRIX:
         if entry.guide_clause == clause:
             if entry.status == "out_of_scope":
@@ -187,44 +175,21 @@ def rules_for_clause(clause: str) -> tuple[str, ...]:
     return ()
 
 
-def validate_matrix_codes(registered_codes: frozenset[str]) -> tuple[str, ...]:
-    """Return matrix rule codes not present in *registered_codes*.
-
-    Parameters
-    ----------
-    registered_codes : frozenset[str]
-        Set of rule codes that exist in the rule registry.
-
-    Returns
-    -------
-    tuple[str, ...]
-        Sorted rule codes referenced by the traceability matrix but absent
-        from the registry.
-    """
-    matrix_codes: set[str] = set()
+def validate_matrix_codes(registered_names: frozenset[str]) -> tuple[str, ...]:
+    """Return matrix rule names not present in *registered_names*."""
+    matrix_names: set[str] = set()
     for entry in TRACEABILITY_MATRIX:
         if entry.status == "out_of_scope":
             continue
-        for code in entry.coverage:
-            matrix_codes.add(code)
-    return tuple(sorted(matrix_codes - registered_codes))
+        for name in entry.coverage:
+            matrix_names.add(name)
+    return tuple(sorted(matrix_names - registered_names))
 
 
-def clause_for_rule(code: str) -> tuple[str, ...]:
-    """Return all guide clauses that a given rule code covers.
-
-    Parameters
-    ----------
-    code : str
-        The rule code to look up (e.g. "D300").
-
-    Returns
-    -------
-    tuple[str, ...]
-        The guide clause strings whose coverage includes the given rule code.
-    """
+def clause_for_rule(name: str) -> tuple[str, ...]:
+    """Return all guide clauses that a given rule name covers."""
     return tuple(
         entry.guide_clause
         for entry in TRACEABILITY_MATRIX
-        if code in entry.coverage
+        if name in entry.coverage
     )

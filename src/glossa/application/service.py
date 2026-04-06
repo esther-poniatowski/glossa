@@ -220,15 +220,15 @@ class GlossaService:
                     message = f"Edited source no longer analyzes cleanly: {exc}"
                 else:
                     remaining = {
-                        (d.target.symbol_path, d.code)
+                        (d.target.symbol_path, d.rule)
                         for d in reanalyzed.diagnostics
                     }
                     for plan in transformation.accepted:
-                        for rule_code in plan.affected_rules:
-                            if (plan.target.symbol_path, rule_code) in remaining:
+                        for rule_name in plan.affected_rules:
+                            if (plan.target.symbol_path, rule_name) in remaining:
                                 validation_passed = False
                                 message = (
-                                    f"Rule {rule_code} still fires for "
+                                    f"Rule {rule_name} still fires for "
                                     f"{'.'.join(plan.target.symbol_path) or '<module>'}."
                                 )
                                 break

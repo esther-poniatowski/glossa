@@ -1,4 +1,4 @@
-"""D4xx Typed Entry Consistency rules for the glossa docstring linter."""
+"""Typed Entry Consistency rules for the glossa docstring linter."""
 
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ from glossa.domain.contracts import (
 from glossa.domain.models import TypedEntry, TypedSection, TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._parameters import documentable_params
+
+_GROUP = "typed-entries"
 
 
 def _types_match(doc_type: str, annotation: str) -> bool:
@@ -81,7 +83,7 @@ def _make_entry_fix(
 
 
 # ---------------------------------------------------------------------------
-# Shared typed-entry consistency checker (Fix #5)
+# Shared typed-entry consistency checker
 # ---------------------------------------------------------------------------
 
 
@@ -189,7 +191,7 @@ def _section_entries_with_annotation(
 
 
 # ---------------------------------------------------------------------------
-# D400 — Parameter type missing from docstring
+# missing-param-type
 # ---------------------------------------------------------------------------
 
 
@@ -197,7 +199,8 @@ class D400:
     """Parameter type missing from docstring."""
 
     metadata = RuleMetadata(
-        code="D400",
+        name="missing-param-type",
+        group=_GROUP,
         description="Parameter type missing from docstring",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_AND_CLASS_KINDS,
@@ -213,12 +216,12 @@ class D400:
             section_kind=TypedSectionKind.PARAMETERS,
             entries_with_annotation=pairs,
             message="Parameter is missing a type in the docstring",
-            affected_rules=("D400", "D401"),
+            affected_rules=("missing-param-type", "param-type-mismatch"),
         )
 
 
 # ---------------------------------------------------------------------------
-# D401 — Parameter type mismatches annotation
+# param-type-mismatch
 # ---------------------------------------------------------------------------
 
 
@@ -226,7 +229,8 @@ class D401:
     """Parameter type mismatches annotation."""
 
     metadata = RuleMetadata(
-        code="D401",
+        name="param-type-mismatch",
+        group=_GROUP,
         description="Parameter type mismatches annotation",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_AND_CLASS_KINDS,
@@ -244,12 +248,12 @@ class D401:
                 f"Parameter '{e.name}' type '{e.type_text}'"
                 f" does not match annotation '{a}'"
             ),
-            affected_rules=("D401",),
+            affected_rules=("param-type-mismatch",),
         )
 
 
 # ---------------------------------------------------------------------------
-# D402 — Return type missing from docstring
+# missing-return-type
 # ---------------------------------------------------------------------------
 
 
@@ -257,7 +261,8 @@ class D402:
     """Return type missing from docstring."""
 
     metadata = RuleMetadata(
-        code="D402",
+        name="missing-return-type",
+        group=_GROUP,
         description="Return type missing from docstring",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_TARGET_KINDS,
@@ -273,12 +278,12 @@ class D402:
             section_kind=TypedSectionKind.RETURNS,
             entries_with_annotation=pairs,
             message="Returns section entry is missing a type",
-            affected_rules=("D402", "D403"),
+            affected_rules=("missing-return-type", "return-type-mismatch"),
         )
 
 
 # ---------------------------------------------------------------------------
-# D403 — Return type mismatches annotation
+# return-type-mismatch
 # ---------------------------------------------------------------------------
 
 
@@ -286,7 +291,8 @@ class D403:
     """Return type mismatches annotation."""
 
     metadata = RuleMetadata(
-        code="D403",
+        name="return-type-mismatch",
+        group=_GROUP,
         description="Return type mismatches annotation",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_TARGET_KINDS,
@@ -303,12 +309,12 @@ class D403:
             message_fn=lambda e, a: (
                 f"Returns entry type '{e.type_text}' does not match annotation '{a}'"
             ),
-            affected_rules=("D403",),
+            affected_rules=("return-type-mismatch",),
         )
 
 
 # ---------------------------------------------------------------------------
-# D404 — Yield type missing or mismatched
+# yield-type-mismatch
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +322,8 @@ class D404:
     """Yield type missing or mismatched."""
 
     metadata = RuleMetadata(
-        code="D404",
+        name="yield-type-mismatch",
+        group=_GROUP,
         description="Yield type missing or mismatched",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_TARGET_KINDS,
@@ -332,19 +339,19 @@ class D404:
             section_kind=TypedSectionKind.YIELDS,
             entries_with_annotation=pairs,
             message="Yields section entry is missing a type",
-            affected_rules=("D404",),
+            affected_rules=("yield-type-mismatch",),
         ) + _check_mismatched_types(
             self, target, context,
             entries_with_annotation=pairs,
             message_fn=lambda e, a: (
                 f"Yields entry type '{e.type_text}' does not match annotation '{a}'"
             ),
-            affected_rules=("D404",),
+            affected_rules=("yield-type-mismatch",),
         )
 
 
 # ---------------------------------------------------------------------------
-# D405 — Attribute type missing where Attributes entry exists
+# missing-attribute-type
 # ---------------------------------------------------------------------------
 
 
@@ -352,7 +359,8 @@ class D405:
     """Attribute type missing where Attributes entry exists."""
 
     metadata = RuleMetadata(
-        code="D405",
+        name="missing-attribute-type",
+        group=_GROUP,
         description="Attribute type missing where Attributes entry exists",
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.CLASS}),
@@ -384,5 +392,5 @@ class D405:
             section_kind=TypedSectionKind.ATTRIBUTES,
             entries_with_annotation=pairs,
             message="Attribute is missing a type in the docstring",
-            affected_rules=("D405",),
+            affected_rules=("missing-attribute-type",),
         )

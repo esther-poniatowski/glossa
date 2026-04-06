@@ -1,4 +1,4 @@
-"""D1xx Presence and Coverage rules for the glossa docstring linter."""
+"""Presence and Coverage rules for the glossa docstring linter."""
 
 from __future__ import annotations
 
@@ -24,23 +24,26 @@ from glossa.domain.rules import Rule, RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._options import validate_bool, validate_positive_int
 from glossa.domain.rules._parameters import documentable_param_names
 
+_GROUP = "presence"
+
 
 # ---------------------------------------------------------------------------
-# Parameterized rule factories (Fix #3)
+# Parameterized rule factories
 # ---------------------------------------------------------------------------
 
 
 def _make_missing_docstring_rule(
     kind: TargetKind,
-    code: str,
+    name: str,
     description: str,
     message: str,
 ) -> type[Rule]:
-    """Factory for D100/D101: fire if a public target of *kind* has no docstring."""
+    """Factory: fire if a public target of *kind* has no docstring."""
 
     class _Rule:
         metadata = RuleMetadata(
-            code=code,
+            name=name,
+            group=_GROUP,
             description=description,
             default_severity=Severity.CONVENTION,
             applies_to=frozenset({kind}),
@@ -57,14 +60,14 @@ def _make_missing_docstring_rule(
                 return (make_diagnostic(self, target, context, message),)
             return ()
 
-    _Rule.__name__ = code
-    _Rule.__qualname__ = code
+    _Rule.__name__ = name
+    _Rule.__qualname__ = name
     _Rule.__doc__ = description
     return _Rule
 
 
 def _make_missing_section_rule(
-    code: str,
+    name: str,
     description: str,
     message: str,
     section_kind: TypedSectionKind,
@@ -73,11 +76,12 @@ def _make_missing_section_rule(
     option_key: str | None = None,
     option_schema: tuple[RuleOptionDescriptor, ...] = (),
 ) -> type[Rule]:
-    """Factory for D104/D105: fire if a signature predicate is True but section is missing."""
+    """Factory: fire if a signature predicate is True but section is missing."""
 
     class _Rule:
         metadata = RuleMetadata(
-            code=code,
+            name=name,
+            group=_GROUP,
             description=description,
             default_severity=Severity.WARNING,
             applies_to=applies_to,
@@ -99,14 +103,14 @@ def _make_missing_section_rule(
                 return (make_diagnostic(self, target, context, message),)
             return ()
 
-    _Rule.__name__ = code
-    _Rule.__qualname__ = code
+    _Rule.__name__ = name
+    _Rule.__qualname__ = name
     _Rule.__doc__ = description
     return _Rule
 
 
 def _make_missing_fact_section_rule(
-    code: str,
+    name: str,
     description: str,
     message: str,
     fact_accessor: Callable[[LintTarget], tuple[ExceptionFact, ...] | tuple[WarningFact, ...]],
@@ -114,11 +118,12 @@ def _make_missing_fact_section_rule(
     confidence_filter: Confidence = Confidence.HIGH,
     exclude_evidence: ExceptionEvidence | None = None,
 ) -> type[Rule]:
-    """Factory for D106/D107: fire if high-confidence facts exist but section is missing."""
+    """Factory: fire if high-confidence facts exist but section is missing."""
 
     class _Rule:
         metadata = RuleMetadata(
-            code=code,
+            name=name,
+            group=_GROUP,
             description=description,
             default_severity=Severity.WARNING,
             applies_to=CALLABLE_TARGET_KINDS,
@@ -145,38 +150,38 @@ def _make_missing_fact_section_rule(
                 return (make_diagnostic(self, target, context, message),)
             return ()
 
-    _Rule.__name__ = code
-    _Rule.__qualname__ = code
+    _Rule.__name__ = name
+    _Rule.__qualname__ = name
     _Rule.__doc__ = description
     return _Rule
 
 
 # ---------------------------------------------------------------------------
-# D100 — Missing public module docstring
+# missing-module-docstring
 # ---------------------------------------------------------------------------
 
 D100 = _make_missing_docstring_rule(
     kind=TargetKind.MODULE,
-    code="D100",
+    name="missing-module-docstring",
     description="Missing public module docstring.",
     message="Missing docstring in public module.",
 )
 
 
 # ---------------------------------------------------------------------------
-# D101 — Missing public class docstring
+# missing-class-docstring
 # ---------------------------------------------------------------------------
 
 D101 = _make_missing_docstring_rule(
     kind=TargetKind.CLASS,
-    code="D101",
+    name="missing-class-docstring",
     description="Missing public class docstring.",
     message="Missing docstring in public class.",
 )
 
 
 # ---------------------------------------------------------------------------
-# D102 — Missing public callable docstring
+# missing-callable-docstring
 # ---------------------------------------------------------------------------
 
 
@@ -184,7 +189,8 @@ class D102:
     """Missing public callable docstring."""
 
     metadata = RuleMetadata(
-        code="D102",
+        name="missing-callable-docstring",
+        group=_GROUP,
         description="Missing public callable docstring.",
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.PROPERTY}),
@@ -218,7 +224,7 @@ class D102:
 
 
 # ---------------------------------------------------------------------------
-# D103 — Missing Parameters section for documentable parameters
+# missing-parameters-section
 # ---------------------------------------------------------------------------
 
 
@@ -226,7 +232,8 @@ class D103:
     """Missing Parameters section for documentable parameters."""
 
     metadata = RuleMetadata(
-        code="D103",
+        name="missing-parameters-section",
+        group=_GROUP,
         description="Missing Parameters section for documentable parameters.",
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.CLASS}),
@@ -252,11 +259,11 @@ class D103:
 
 
 # ---------------------------------------------------------------------------
-# D104 — Missing Returns section where required
+# missing-returns-section
 # ---------------------------------------------------------------------------
 
 D104 = _make_missing_section_rule(
-    code="D104",
+    name="missing-returns-section",
     description="Missing Returns section where required.",
     message="Missing Returns section where required.",
     section_kind=TypedSectionKind.RETURNS,
@@ -270,11 +277,11 @@ D104 = _make_missing_section_rule(
 
 
 # ---------------------------------------------------------------------------
-# D105 — Missing Yields section for generators
+# missing-yields-section
 # ---------------------------------------------------------------------------
 
 D105 = _make_missing_section_rule(
-    code="D105",
+    name="missing-yields-section",
     description="Missing Yields section for generators.",
     message="Missing Yields section for generator.",
     section_kind=TypedSectionKind.YIELDS,
@@ -284,11 +291,11 @@ D105 = _make_missing_section_rule(
 
 
 # ---------------------------------------------------------------------------
-# D106 — Missing Raises section for public-contract exceptions
+# missing-raises-section
 # ---------------------------------------------------------------------------
 
 D106 = _make_missing_fact_section_rule(
-    code="D106",
+    name="missing-raises-section",
     description="Missing Raises section for public-contract exceptions.",
     message="Missing Raises section for public-contract exceptions.",
     fact_accessor=lambda t: t.exceptions,
@@ -299,11 +306,11 @@ D106 = _make_missing_fact_section_rule(
 
 
 # ---------------------------------------------------------------------------
-# D107 — Missing Warns section for public warnings
+# missing-warns-section
 # ---------------------------------------------------------------------------
 
 D107 = _make_missing_fact_section_rule(
-    code="D107",
+    name="missing-warns-section",
     description="Missing Warns section for public warnings.",
     message="Missing Warns section for public warnings.",
     fact_accessor=lambda t: t.warnings,
@@ -313,7 +320,7 @@ D107 = _make_missing_fact_section_rule(
 
 
 # ---------------------------------------------------------------------------
-# D108 — Missing module Classes/Functions inventory when required
+# missing-module-inventory
 # ---------------------------------------------------------------------------
 
 
@@ -321,7 +328,8 @@ class D108:
     """Missing module Classes/Functions inventory when required."""
 
     metadata = RuleMetadata(
-        code="D108",
+        name="missing-module-inventory",
+        group=_GROUP,
         description="Missing module Classes/Functions inventory when required.",
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.MODULE}),
@@ -379,7 +387,7 @@ class D108:
 
 
 # ---------------------------------------------------------------------------
-# D109 — Missing Attributes section where class attributes require documentation
+# missing-attributes-section
 # ---------------------------------------------------------------------------
 
 
@@ -387,7 +395,8 @@ class D109:
     """Missing Attributes section where class attributes require documentation."""
 
     metadata = RuleMetadata(
-        code="D109",
+        name="missing-attributes-section",
+        group=_GROUP,
         description="Missing Attributes section where class attributes require documentation.",
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.CLASS}),
@@ -415,7 +424,7 @@ class D109:
 
 
 # ---------------------------------------------------------------------------
-# D110 — Constructor parameters documented in __init__ instead of class docstring
+# params-in-init-not-class
 # ---------------------------------------------------------------------------
 
 
@@ -423,7 +432,8 @@ class D110:
     """Constructor parameters documented in __init__ instead of class docstring."""
 
     metadata = RuleMetadata(
-        code="D110",
+        name="params-in-init-not-class",
+        group=_GROUP,
         description="Constructor parameters documented in __init__ instead of class docstring.",
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.CLASS}),
@@ -461,7 +471,7 @@ class D110:
 
 
 # ---------------------------------------------------------------------------
-# D111 — Missing deprecation directive for deprecated public API
+# missing-deprecation-directive
 # ---------------------------------------------------------------------------
 
 
@@ -469,7 +479,8 @@ class D111:
     """Missing deprecation directive for deprecated public API."""
 
     metadata = RuleMetadata(
-        code="D111",
+        name="missing-deprecation-directive",
+        group=_GROUP,
         description="Missing deprecation directive for deprecated public API.",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,

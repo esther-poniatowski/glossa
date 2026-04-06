@@ -1,4 +1,4 @@
-"""D5xx Anti-Patterns rules for the glossa docstring linter."""
+"""Anti-Patterns rules for the glossa docstring linter."""
 
 from __future__ import annotations
 
@@ -19,9 +19,11 @@ from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._options import validate_string_tuple
 from glossa.domain.rules._scanning import scan_rst_directives
 
+_GROUP = "anti-patterns"
+
 
 # ---------------------------------------------------------------------------
-# D500 — Empty docstring body
+# empty-docstring
 # ---------------------------------------------------------------------------
 
 
@@ -29,7 +31,8 @@ class D500:
     """Fires when a docstring exists but its body is empty or whitespace-only."""
 
     metadata = RuleMetadata(
-        code="D500",
+        name="empty-docstring",
+        group=_GROUP,
         description="Empty docstring body.",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -53,7 +56,7 @@ class D500:
 
 
 # ---------------------------------------------------------------------------
-# D501 — Trivial dunder method docstring
+# trivial-dunder-docstring
 # ---------------------------------------------------------------------------
 
 _BOILERPLATE_PHRASES: tuple[str, ...] = (
@@ -86,7 +89,8 @@ class D501:
     """Fires when a dunder method docstring trivially restates the method name."""
 
     metadata = RuleMetadata(
-        code="D501",
+        name="trivial-dunder-docstring",
+        group=_GROUP,
         description="Trivial dunder method docstring.",
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.METHOD}),
@@ -125,7 +129,7 @@ class D501:
 
 
 # ---------------------------------------------------------------------------
-# D502 — Redundant Returns None section
+# redundant-returns-none
 # ---------------------------------------------------------------------------
 
 
@@ -133,7 +137,8 @@ class D502:
     """Fires when a void callable has a Returns section listing only None."""
 
     metadata = RuleMetadata(
-        code="D502",
+        name="redundant-returns-none",
+        group=_GROUP,
         description="Redundant Returns None section for a function that does not return a value.",
         default_severity=Severity.CONVENTION,
         applies_to=CALLABLE_TARGET_KINDS,
@@ -172,7 +177,7 @@ class D502:
                     text="",
                 ),
             ),
-            affected_rules=("D502",),
+            affected_rules=("redundant-returns-none",),
         )
 
         return (
@@ -186,7 +191,7 @@ class D502:
 
 
 # ---------------------------------------------------------------------------
-# D503 — Prose uses RST note/warning directive instead of a NumPy section
+# rst-note-warning-directive
 # ---------------------------------------------------------------------------
 
 _D503_DIRECTIVES = frozenset({"note", "warning"})
@@ -201,7 +206,8 @@ class D503:
     """Fires when prose contains a RST ``.. note::`` or ``.. warning::`` directive."""
 
     metadata = RuleMetadata(
-        code="D503",
+        name="rst-note-warning-directive",
+        group=_GROUP,
         description=(
             "Prose uses a RST note/warning directive; use a NumPy-style section instead."
         ),

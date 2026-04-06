@@ -147,7 +147,7 @@ class FixPlan:
 
 @dataclass(frozen=True)
 class Diagnostic:
-    code: str
+    rule: str
     message: str
     severity: Severity
     target: SourceRef

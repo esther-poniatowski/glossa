@@ -1,4 +1,4 @@
-"""D2xx — Prose and Summary Format rules."""
+"""Prose and Summary Format rules."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import re
 from glossa.domain.contracts import (
     ALL_TARGET_KINDS,
     NON_PROPERTY_KINDS,
+    Diagnostic,
     DocstringEdit,
     EditKind,
     FixPlan,
@@ -15,22 +16,16 @@ from glossa.domain.contracts import (
 )
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 
+_GROUP = "prose"
+
 
 # ---------------------------------------------------------------------------
-# D200 — Summary line is not imperative where imperative voice is required
+# non-imperative-summary
 # ---------------------------------------------------------------------------
 
 
 def _is_non_imperative(summary_text: str) -> bool:
-    """Return True when the summary appears to open with a non-imperative verb.
-
-    The heuristic targets the most common offenders:
-    - Third-person singular present tense: the first word ends in a single
-      's' that is *not* part of an 'ss', 'us', or 'is' suffix and is
-      followed by whitespace (e.g. "Returns the value").
-    - Common gerund forms: the first word ends in 'ing' (e.g. "Getting",
-      "Returning", "Setting").
-    """
+    """Return True when the summary appears to open with a non-imperative verb."""
     if not summary_text:
         return False
 
@@ -41,13 +36,9 @@ def _is_non_imperative(summary_text: str) -> bool:
     first_word = first_word_match.group(1)
     lower = first_word.lower()
 
-    # Gerund: ends in 'ing'
     if lower.endswith("ing"):
         return True
 
-    # Third-person singular: ends in a single 's' not preceded by another 's',
-    # 'u', or 'i' (avoids words like "process", "focus", "basis", "this").
-    # Also require that a space follows (so we don't fire on single-word summaries).
     if (
         lower.endswith("s")
         and not lower.endswith("ss")
@@ -64,7 +55,8 @@ class D200:
     """Summary line is not imperative where imperative voice is required."""
 
     metadata = RuleMetadata(
-        code="D200",
+        name="non-imperative-summary",
+        group=_GROUP,
         description="Summary line is not imperative where imperative voice is required.",
         default_severity=Severity.CONVENTION,
         applies_to=NON_PROPERTY_KINDS,
@@ -96,7 +88,7 @@ class D200:
 
 
 # ---------------------------------------------------------------------------
-# D201 — Summary line missing terminal period
+# missing-period
 # ---------------------------------------------------------------------------
 
 
@@ -104,7 +96,8 @@ class D201:
     """Summary line missing terminal period."""
 
     metadata = RuleMetadata(
-        code="D201",
+        name="missing-period",
+        group=_GROUP,
         description="Summary line missing terminal period.",
         default_severity=Severity.CONVENTION,
         applies_to=ALL_TARGET_KINDS,
@@ -136,7 +129,7 @@ class D201:
                     text=fixed_text,
                 ),
             ),
-            affected_rules=("D201",),
+            affected_rules=("missing-period",),
         )
 
         return (
@@ -150,7 +143,7 @@ class D201:
 
 
 # ---------------------------------------------------------------------------
-# D202 — Missing blank line after summary when body follows
+# missing-blank-after-summary
 # ---------------------------------------------------------------------------
 
 
@@ -178,7 +171,8 @@ class D202:
     """Missing blank line after summary when body follows."""
 
     metadata = RuleMetadata(
-        code="D202",
+        name="missing-blank-after-summary",
+        group=_GROUP,
         description="Missing blank line after summary when body follows.",
         default_severity=Severity.CONVENTION,
         applies_to=ALL_TARGET_KINDS,
@@ -216,7 +210,7 @@ class D202:
 
 
 # ---------------------------------------------------------------------------
-# D203 — First-person voice in docstring
+# first-person-voice
 # ---------------------------------------------------------------------------
 
 _FIRST_PERSON_RE = re.compile(r"\b(I|my|me|we|our|us)\b")
@@ -226,7 +220,8 @@ class D203:
     """First-person voice in docstring."""
 
     metadata = RuleMetadata(
-        code="D203",
+        name="first-person-voice",
+        group=_GROUP,
         description="First-person voice in docstring.",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -254,7 +249,7 @@ class D203:
 
 
 # ---------------------------------------------------------------------------
-# D204 — Second-person voice in docstring
+# second-person-voice
 # ---------------------------------------------------------------------------
 
 _SECOND_PERSON_RE = re.compile(r"\b(you|your|yours)\b", re.IGNORECASE)
@@ -264,7 +259,8 @@ class D204:
     """Second-person voice in docstring."""
 
     metadata = RuleMetadata(
-        code="D204",
+        name="second-person-voice",
+        group=_GROUP,
         description="Second-person voice in docstring.",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -292,18 +288,11 @@ class D204:
 
 
 # ---------------------------------------------------------------------------
-# D205 — Markdown syntax where RST is required
+# markdown-in-docstring
 # ---------------------------------------------------------------------------
 
-# Matches a Markdown ATX heading: a line that starts with one or more '#'
-# followed by a space.
 _MD_HEADING_RE = re.compile(r"^#{1,6} ", re.MULTILINE)
-
-# Matches a fenced code block delimiter (triple backtick).
 _MD_FENCE_RE = re.compile(r"```")
-
-# Matches a Markdown inline link: [text](url).  We require a non-empty label
-# and a non-empty URL to avoid false positives on RST cross-references.
 _MD_LINK_RE = re.compile(r"\[.+?\]\(.+?\)")
 
 
@@ -322,7 +311,8 @@ class D205:
     """Markdown syntax where RST is required."""
 
     metadata = RuleMetadata(
-        code="D205",
+        name="markdown-in-docstring",
+        group=_GROUP,
         description="Markdown syntax where RST is required.",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,

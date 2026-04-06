@@ -96,7 +96,7 @@ def analyze_file(
             if not policy.enabled:
                 continue
             if config.suppressions.inline_enabled and is_rule_suppressed(
-                rule.metadata.code, inline_suppressions
+                rule.metadata.name, inline_suppressions
             ):
                 continue
 

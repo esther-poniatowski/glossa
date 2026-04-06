@@ -1,4 +1,4 @@
-"""D3xx — Section Structure and Placement rules for glossa."""
+"""Section Structure and Placement rules for glossa."""
 
 from __future__ import annotations
 
@@ -28,6 +28,8 @@ from glossa.domain.rules._options import validate_string_tuple
 from glossa.domain.rules._parameters import documentable_param_names
 from glossa.domain.rules._scanning import scan_rst_directives
 
+_GROUP = "structure"
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -49,7 +51,7 @@ def _docstring_param_names(target: LintTarget) -> frozenset[str]:
 
 
 # ---------------------------------------------------------------------------
-# D300 — Section underline is malformed
+# malformed-underline
 # ---------------------------------------------------------------------------
 
 
@@ -57,7 +59,8 @@ class D300:
     """Section underline is malformed."""
 
     metadata = RuleMetadata(
-        code="D300",
+        name="malformed-underline",
+        group=_GROUP,
         description="Section underline is malformed",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -107,7 +110,7 @@ class D300:
 
 
 # ---------------------------------------------------------------------------
-# D301 — Section order violates NumPy policy
+# section-order
 # ---------------------------------------------------------------------------
 
 
@@ -115,7 +118,8 @@ class D301:
     """Section order violates NumPy policy."""
 
     metadata = RuleMetadata(
-        code="D301",
+        name="section-order",
+        group=_GROUP,
         description="Section order violates NumPy policy",
         default_severity=Severity.CONVENTION,
         applies_to=ALL_TARGET_KINDS,
@@ -159,7 +163,7 @@ class D301:
 
 
 # ---------------------------------------------------------------------------
-# D302 — Undocumented parameter present in signature
+# undocumented-parameter
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +171,8 @@ class D302:
     """Undocumented parameter present in signature."""
 
     metadata = RuleMetadata(
-        code="D302",
+        name="undocumented-parameter",
+        group=_GROUP,
         description="Undocumented parameter present in signature",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_AND_CLASS_KINDS,
@@ -196,7 +201,7 @@ class D302:
 
 
 # ---------------------------------------------------------------------------
-# D303 — Extraneous parameter appears in docstring
+# extraneous-parameter
 # ---------------------------------------------------------------------------
 
 
@@ -204,7 +209,8 @@ class D303:
     """Extraneous parameter appears in docstring."""
 
     metadata = RuleMetadata(
-        code="D303",
+        name="extraneous-parameter",
+        group=_GROUP,
         description="Extraneous parameter appears in docstring",
         default_severity=Severity.WARNING,
         applies_to=CALLABLE_AND_CLASS_KINDS,
@@ -233,7 +239,7 @@ class D303:
 
 
 # ---------------------------------------------------------------------------
-# D304 — Deprecation directive is malformed or misplaced
+# malformed-deprecation
 # ---------------------------------------------------------------------------
 
 
@@ -241,7 +247,8 @@ class D304:
     """Deprecation directive is malformed or misplaced."""
 
     metadata = RuleMetadata(
-        code="D304",
+        name="malformed-deprecation",
+        group=_GROUP,
         description="Deprecation directive is malformed or misplaced",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -289,7 +296,7 @@ class D304:
 
 
 # ---------------------------------------------------------------------------
-# D305 — RST directive used where a NumPy section exists
+# rst-directive-instead-of-section
 # ---------------------------------------------------------------------------
 
 _D305_DIRECTIVES = frozenset({
@@ -302,7 +309,8 @@ class D305:
     """RST directive used where a NumPy section exists."""
 
     metadata = RuleMetadata(
-        code="D305",
+        name="rst-directive-instead-of-section",
+        group=_GROUP,
         description="RST directive used where a NumPy section exists",
         default_severity=Severity.WARNING,
         applies_to=ALL_TARGET_KINDS,
@@ -332,7 +340,7 @@ class D305:
 
 
 # ---------------------------------------------------------------------------
-# D306 — Examples appears in a non-entry-point module docstring
+# examples-in-non-entry-module
 # ---------------------------------------------------------------------------
 
 
@@ -340,7 +348,8 @@ class D306:
     """Examples appears in a non-entry-point module docstring."""
 
     metadata = RuleMetadata(
-        code="D306",
+        name="examples-in-non-entry-module",
+        group=_GROUP,
         description="Examples appears in a non-entry-point module docstring",
         default_severity=Severity.CONVENTION,
         applies_to=frozenset({TargetKind.MODULE}),

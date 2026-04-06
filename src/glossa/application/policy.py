@@ -18,35 +18,9 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-def matches_pattern(rule_code: str, pattern: str) -> bool:
-    """Return True if rule_code matches pattern.
-
-    An exact match always succeeds. A pattern ending with one or more ``x``
-    characters (case-insensitive) acts as a prefix wildcard.
-
-    Examples
-    --------
-    >>> matches_pattern("D100", "D1xx")
-    True
-    >>> matches_pattern("D200", "D1xx")
-    False
-    >>> matches_pattern("D102", "D102")
-    True
-    """
-    if rule_code == pattern:
-        return True
-
-    stripped = pattern.rstrip("xX")
-    if stripped == pattern:
-        return False
-
-    wildcard_count = len(pattern) - len(stripped)
-    prefix_len = len(stripped)
-
-    if len(rule_code) != len(stripped) + wildcard_count:
-        return False
-
-    return rule_code[:prefix_len].upper() == stripped.upper()
+def matches_rule(rule_metadata: RuleMetadata, pattern: str) -> bool:
+    """Return True if *pattern* matches the rule's name or group."""
+    return rule_metadata.name == pattern or rule_metadata.group == pattern
 
 
 def matches_file_pattern(source_id: str, glob_pattern: str) -> bool:
@@ -71,45 +45,45 @@ def resolve_rule_policy(
     1. A rule in ``config.rules.ignore`` is always disabled.
     2. A rule matching any pattern in ``config.rules.select`` is enabled.
     3. ``config.rules.per_file_ignores``: if source_id matches a glob pattern
-       whose rule list includes rule_code, the rule is disabled.
+       whose rule list includes the rule name or group, the rule is disabled.
     4. Severity is taken from ``config.rules.severity_overrides`` when present,
        otherwise from the rule's ``default_severity``.
     5. Options are merged from the rule's ``option_schema`` defaults with any
        user-supplied overrides in ``config.rules.rule_options``.
     """
-    rule_code = rule_metadata.code
+    rule_name = rule_metadata.name
     rules = config.rules
     options = _resolve_options(rule_metadata, rules)
 
     for ignored in rules.ignore:
-        if matches_pattern(rule_code, ignored):
+        if matches_rule(rule_metadata, ignored):
             return RulePolicy(
                 enabled=False,
-                severity=_resolve_severity(rule_code, rules.severity_overrides, rule_metadata.default_severity),
+                severity=_resolve_severity(rule_name, rules.severity_overrides, rule_metadata.default_severity),
                 options=options,
             )
 
-    selected = any(matches_pattern(rule_code, pattern) for pattern in rules.select)
+    selected = any(matches_rule(rule_metadata, pattern) for pattern in rules.select)
 
     per_file_disabled = False
-    for glob_pattern, ignored_codes in rules.per_file_ignores.items():
+    for glob_pattern, ignored_rules in rules.per_file_ignores.items():
         if matches_file_pattern(source_id, glob_pattern):
-            if any(matches_pattern(rule_code, code) for code in ignored_codes):
+            if any(matches_rule(rule_metadata, r) for r in ignored_rules):
                 per_file_disabled = True
                 break
 
     enabled = selected and not per_file_disabled
-    severity = _resolve_severity(rule_code, rules.severity_overrides, rule_metadata.default_severity)
+    severity = _resolve_severity(rule_name, rules.severity_overrides, rule_metadata.default_severity)
 
     return RulePolicy(enabled=enabled, severity=severity, options=options)
 
 
 def _resolve_severity(
-    rule_code: str,
+    rule_name: str,
     severity_overrides: Mapping[str, Severity],
     default_severity: Severity,
 ) -> Severity:
-    return severity_overrides.get(rule_code, default_severity)
+    return severity_overrides.get(rule_name, default_severity)
 
 
 def _resolve_options(
@@ -119,7 +93,7 @@ def _resolve_options(
     """Merge rule schema defaults with user-supplied options, coercing via validators."""
     result: dict[str, object] = {d.key: d.default for d in rule_metadata.option_schema}
     schema_map = {d.key: d for d in rule_metadata.option_schema}
-    user = rules.rule_options.get(rule_metadata.code, {})
+    user = rules.rule_options.get(rule_metadata.name, {})
     for key, value in user.items():
         descriptor = schema_map.get(key)
         result[key] = descriptor.validator(value, key) if descriptor is not None else value
@@ -139,8 +113,8 @@ def parse_inline_suppression(
 
     Examples
     --------
-    >>> parse_inline_suppression('x = 1  # glossa: ignore=D100,D101')
-    ('D100', 'D101')
+    >>> parse_inline_suppression('x = 1  # glossa: ignore=missing-period,first-person-voice')
+    ('missing-period', 'first-person-voice')
     >>> parse_inline_suppression('x = 1  # some other comment') is None
     True
     """
@@ -153,12 +127,12 @@ def parse_inline_suppression(
     if not comment_body.startswith(directive_prefix):
         return None
 
-    codes_str = comment_body[len(directive_prefix):]
-    codes = tuple(code.strip() for code in codes_str.split(",") if code.strip())
+    names_str = comment_body[len(directive_prefix):]
+    names = tuple(name.strip() for name in names_str.split(",") if name.strip())
 
-    return codes if codes else None
+    return names if names else None
 
 
-def is_rule_suppressed(rule_code: str, suppressions: tuple[str, ...]) -> bool:
-    """Return True if rule_code is present in the suppressions tuple."""
-    return rule_code in suppressions
+def is_rule_suppressed(rule_name: str, suppressions: tuple[str, ...]) -> bool:
+    """Return True if rule_name is present in the suppressions tuple."""
+    return rule_name in suppressions

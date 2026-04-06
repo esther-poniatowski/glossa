@@ -25,7 +25,7 @@ def format_text(
 
         sev = diag.severity.value.upper()
 
-        line = f"{location}: {sev} {diag.code} {diag.message}"
+        line = f"{location}: {sev} {diag.rule} {diag.message}"
         if show_source and symbol:
             line += f" [{symbol}]"
         if diag.fix is not None:
@@ -42,7 +42,7 @@ def format_json(diagnostics: Sequence[Diagnostic]) -> str:
     items = []
     for diag in diagnostics:
         item: dict[str, object] = {
-            "code": diag.code,
+            "rule": diag.rule,
             "message": diag.message,
             "severity": diag.severity.value,
             "source_id": diag.target.source_id,
