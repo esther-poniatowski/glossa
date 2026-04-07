@@ -37,8 +37,8 @@ class Visibility(Enum):
 
 ## Extracted Data From Infrastructure
 
-`ExtractedTarget` is the sole output of infrastructure extraction. It is owned by the
-application layer even though infrastructure constructs it.
+`ExtractedTarget` is the sole output of infrastructure extraction. The application layer
+owns the type even though infrastructure constructs instances.
 
 ```python
 @dataclass(frozen=True)

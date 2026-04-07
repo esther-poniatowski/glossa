@@ -12,7 +12,7 @@ Adapters -> Application -> Domain
                 -> Infrastructure (via application-defined protocols)
 ```
 
-There is exactly one composition root: `glossa/adapters/bootstrap.py`.
+`glossa/adapters/bootstrap.py` is the sole composition root.
 
 ## Domain (`glossa/domain/`)
 

@@ -1,6 +1,6 @@
 # Rule System
 
-This document covers the rule contract, dispatch model, registry, extensibility,
+The rule system comprises the rule contract, dispatch model, registry, extensibility,
 configuration design, and ambiguous policy resolution.
 
 ## Rule Contract
@@ -48,7 +48,7 @@ Rules never dispatch themselves by scope. Cross-target checks are supported thro
 ## Registry and Extensibility
 
 Rules are provided through an explicit registry object assembled in the composition
-root. There is no module-level mutable singleton and no import-order registration.
+root. The design avoids module-level mutable singletons and import-order registration.
 
 ```python
 class RuleProvider(Protocol):

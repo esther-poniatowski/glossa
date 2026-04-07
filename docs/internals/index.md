@@ -1,7 +1,7 @@
 # Internals
 
 Developer documentation for glossa's architecture and implementation.
-These documents describe how the tool works, not how to use it.
+The internals section explains how the tool works, not how to use it.
 
 | Document | Content |
 | -------- | ------- |

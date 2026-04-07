@@ -7,7 +7,7 @@ diagnostic reporting to automatic correction.
 See [CLI Reference](cli-reference.md) for all commands and options.
 See [Configuration](configuration.md) for rule selection and fix policies.
 
-## Linting
+## Lint
 
 The `lint` command analyzes Python source files and reports docstring violations:
 
@@ -29,7 +29,7 @@ JSON output supports machine consumption and CI integration:
 glossa lint src/ --format json
 ```
 
-## Fixing
+## Fix
 
 The `fix` command applies validated corrections in place:
 
