@@ -1,4 +1,4 @@
-"""Tests for D5xx anti-pattern rules."""
+"""Tests for anti-pattern rules."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from glossa.domain.contracts import (
 )
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
-from glossa.domain.rules.anti_patterns import D500, D501, D502, D503
+from glossa.domain.rules.anti_patterns import EmptyDocstring, RedundantReturnsNone, RstNoteWarningDirective, TrivialDunderDocstring
 
 
 # ---------------------------------------------------------------------------
@@ -93,12 +93,12 @@ def parsed(text: str):
 
 
 # ---------------------------------------------------------------------------
-# D500 — empty-docstring
+# EmptyDocstring — empty-docstring
 # ---------------------------------------------------------------------------
 
 
-def test_d500_empty_body_fires():
-    """Docstring with empty/whitespace-only body fires D500."""
+def test_empty_docstring_fires():
+    """Docstring with empty/whitespace-only body fires."""
     raw = ExtractedDocstring(
         body="   ",
         quote='"""',
@@ -114,13 +114,13 @@ def test_d500_empty_body_fires():
         ),
     )
     target = make_target(raw_docstring=raw, docstring=None)
-    diagnostics = D500().evaluate(target, make_context())
+    diagnostics = EmptyDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "empty-docstring"
 
 
-def test_d500_nonempty_body_no_fire():
-    """Docstring with actual content does not fire D500."""
+def test_empty_docstring_nonempty_no_fire():
+    """Docstring with actual content does not fire."""
     raw = ExtractedDocstring(
         body="Do something.",
         quote='"""',
@@ -136,18 +136,18 @@ def test_d500_nonempty_body_no_fire():
         ),
     )
     target = make_target(raw_docstring=raw, docstring=parsed("Do something."))
-    diagnostics = D500().evaluate(target, make_context())
+    diagnostics = EmptyDocstring().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D501 — trivial-dunder-docstring
+# TrivialDunderDocstring — trivial-dunder-docstring
 # ---------------------------------------------------------------------------
 
 
-def test_d501_trivial_init_fires():
-    """Dunder __init__ with boilerplate summary fires D501."""
-    rule = D501()
+def test_trivial_dunder_docstring_init_fires():
+    """Dunder __init__ with boilerplate summary fires."""
+    rule = TrivialDunderDocstring()
     target = make_target(
         kind=TargetKind.METHOD,
         docstring=parsed("Initialize self."),
@@ -158,9 +158,9 @@ def test_d501_trivial_init_fires():
     assert diagnostics[0].rule == "trivial-dunder-docstring"
 
 
-def test_d501_real_summary_no_fire():
-    """Dunder __init__ with a meaningful summary does not fire D501."""
-    rule = D501()
+def test_trivial_dunder_docstring_real_summary_no_fire():
+    """Dunder __init__ with a meaningful summary does not fire."""
+    rule = TrivialDunderDocstring()
     target = make_target(
         kind=TargetKind.METHOD,
         docstring=parsed("Set up the database connection."),
@@ -171,7 +171,7 @@ def test_d501_real_summary_no_fire():
 
 
 # ---------------------------------------------------------------------------
-# D502 — redundant-returns-none
+# RedundantReturnsNone — redundant-returns-none
 # ---------------------------------------------------------------------------
 
 
@@ -193,8 +193,8 @@ def _make_returning_sig() -> SignatureFacts:
     )
 
 
-def test_d502_void_with_returns_none_fires():
-    """Void function with Returns section listing None fires D502."""
+def test_redundant_returns_none_void_fires():
+    """Void function with Returns section listing None fires."""
     doc_text = (
         "Do something.\n\n"
         "Returns\n"
@@ -206,13 +206,13 @@ def test_d502_void_with_returns_none_fires():
         docstring=parsed(doc_text),
         signature=_make_void_sig(),
     )
-    diagnostics = D502().evaluate(target, make_context())
+    diagnostics = RedundantReturnsNone().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "redundant-returns-none"
 
 
-def test_d502_returning_function_no_fire():
-    """Function that returns a value with Returns section does not fire D502."""
+def test_redundant_returns_none_returning_no_fire():
+    """Function that returns a value with Returns section does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Returns\n"
@@ -224,30 +224,30 @@ def test_d502_returning_function_no_fire():
         docstring=parsed(doc_text),
         signature=_make_returning_sig(),
     )
-    diagnostics = D502().evaluate(target, make_context())
+    diagnostics = RedundantReturnsNone().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D503 — rst-note-warning-directive
+# RstNoteWarningDirective — rst-note-warning-directive
 # ---------------------------------------------------------------------------
 
 
-def test_d503_rst_note_directive_fires():
-    """Docstring with ``.. note::`` directive fires D503."""
+def test_rst_note_warning_directive_note_fires():
+    """Docstring with ``.. note::`` directive fires."""
     doc_text = (
         "Do something.\n\n"
         ".. note::\n"
         "    This is important.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D503().evaluate(target, make_context())
+    diagnostics = RstNoteWarningDirective().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "rst-note-warning-directive"
 
 
-def test_d503_numpy_notes_section_no_fire():
-    """Docstring with a proper NumPy Notes section does not fire D503."""
+def test_rst_note_warning_directive_numpy_notes_no_fire():
+    """Docstring with a proper NumPy Notes section does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Notes\n"
@@ -255,5 +255,5 @@ def test_d503_numpy_notes_section_no_fire():
         "This is important.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D503().evaluate(target, make_context())
+    diagnostics = RstNoteWarningDirective().evaluate(target, make_context())
     assert diagnostics == ()

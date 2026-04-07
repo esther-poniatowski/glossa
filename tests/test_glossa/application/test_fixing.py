@@ -16,7 +16,7 @@ from glossa.application.configuration import (
 from glossa.application.fixing import FixRejectionReason, apply_fixes
 from glossa.application.linting import analyze_file
 from glossa.application.registry import RuleRegistry
-from glossa.domain.rules.prose import D201
+from glossa.domain.rules.prose import MissingPeriod
 from glossa.infrastructure.extraction import ASTExtractor
 
 
@@ -57,7 +57,7 @@ def test_apply_fixes_updates_docstring_body_without_corrupting_file() -> None:
         source_text=source,
         extraction_port=ASTExtractor(),
         config=config,
-        registry=RuleRegistry(builtins=(D201(),), plugins=()),
+        registry=RuleRegistry(builtins=(MissingPeriod(),), plugins=()),
     )
 
     transformations = apply_fixes(analyzed_files=(analyzed,), config=config)
@@ -88,7 +88,7 @@ def test_apply_fixes_does_not_false_conflict_across_multiple_docstrings() -> Non
         source_text=source,
         extraction_port=ASTExtractor(),
         config=config,
-        registry=RuleRegistry(builtins=(D201(),), plugins=()),
+        registry=RuleRegistry(builtins=(MissingPeriod(),), plugins=()),
     )
 
     transformations = apply_fixes(analyzed_files=(analyzed,), config=config)

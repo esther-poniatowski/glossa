@@ -1,4 +1,4 @@
-"""Tests for D4xx typed entry consistency rules."""
+"""Tests for typed entry consistency rules."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from glossa.domain.contracts import (
 )
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
-from glossa.domain.rules.typed_entries import D400, D401, D403
+from glossa.domain.rules.typed_entries import MissingParamType, ParamTypeMismatch, ReturnTypeMismatch
 
 
 # ---------------------------------------------------------------------------
@@ -122,12 +122,12 @@ def _make_sig_with_return(return_annotation: str = "list") -> SignatureFacts:
 
 
 # ---------------------------------------------------------------------------
-# D400 — missing-param-type
+# MissingParamType — missing-param-type
 # ---------------------------------------------------------------------------
 
 
-def test_d400_missing_type_fires():
-    """Parameter with annotation but no type in docstring fires D400."""
+def test_missing_param_type_fires():
+    """Parameter with annotation but no type in docstring fires."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -139,12 +139,12 @@ def test_d400_missing_type_fires():
         docstring=parsed(doc_text),
         signature=_make_sig_with_param("x", "int"),
     )
-    diagnostics = D400().evaluate(target, make_context())
+    diagnostics = MissingParamType().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-param-type"
 
 
-def test_d400_type_present_no_fire():
+def test_missing_param_type_present_no_fire():
     """Parameter with annotation and matching type in docstring does not fire."""
     doc_text = (
         "Do something.\n\n"
@@ -157,17 +157,17 @@ def test_d400_type_present_no_fire():
         docstring=parsed(doc_text),
         signature=_make_sig_with_param("x", "int"),
     )
-    diagnostics = D400().evaluate(target, make_context())
+    diagnostics = MissingParamType().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D401 — param-type-mismatch
+# ParamTypeMismatch — param-type-mismatch
 # ---------------------------------------------------------------------------
 
 
-def test_d401_mismatched_type_fires():
-    """Parameter type in docstring differs from annotation fires D401."""
+def test_param_type_mismatch_fires():
+    """Parameter type in docstring differs from annotation fires."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -179,13 +179,13 @@ def test_d401_mismatched_type_fires():
         docstring=parsed(doc_text),
         signature=_make_sig_with_param("x", "int"),
     )
-    diagnostics = D401().evaluate(target, make_context())
+    diagnostics = ParamTypeMismatch().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "param-type-mismatch"
 
 
-def test_d401_matching_type_no_fire():
-    """Parameter type matching annotation does not fire D401."""
+def test_param_type_mismatch_matching_no_fire():
+    """Parameter type matching annotation does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -197,17 +197,17 @@ def test_d401_matching_type_no_fire():
         docstring=parsed(doc_text),
         signature=_make_sig_with_param("x", "int"),
     )
-    diagnostics = D401().evaluate(target, make_context())
+    diagnostics = ParamTypeMismatch().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D403 — return-type-mismatch
+# ReturnTypeMismatch — return-type-mismatch
 # ---------------------------------------------------------------------------
 
 
-def test_d403_mismatched_return_type_fires():
-    """Returns type in docstring differs from annotation fires D403."""
+def test_return_type_mismatch_fires():
+    """Returns type in docstring differs from annotation fires."""
     doc_text = (
         "Do something.\n\n"
         "Returns\n"
@@ -219,13 +219,13 @@ def test_d403_mismatched_return_type_fires():
         docstring=parsed(doc_text),
         signature=_make_sig_with_return("list"),
     )
-    diagnostics = D403().evaluate(target, make_context())
+    diagnostics = ReturnTypeMismatch().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "return-type-mismatch"
 
 
-def test_d403_matching_return_type_no_fire():
-    """Returns type matching annotation does not fire D403."""
+def test_return_type_mismatch_matching_no_fire():
+    """Returns type matching annotation does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Returns\n"
@@ -237,5 +237,5 @@ def test_d403_matching_return_type_no_fire():
         docstring=parsed(doc_text),
         signature=_make_sig_with_return("list"),
     )
-    diagnostics = D403().evaluate(target, make_context())
+    diagnostics = ReturnTypeMismatch().evaluate(target, make_context())
     assert diagnostics == ()

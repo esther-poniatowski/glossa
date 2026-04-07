@@ -1,4 +1,4 @@
-"""Tests for D2xx prose and summary format rules."""
+"""Tests for prose and summary format rules."""
 
 from __future__ import annotations
 
@@ -21,12 +21,12 @@ from glossa.domain.contracts import (
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
 from glossa.domain.rules.prose import (
-    D200,
-    D201,
-    D202,
-    D203,
-    D204,
-    D205,
+    FirstPersonVoice,
+    MarkdownInDocstring,
+    MissingBlankAfterSummary,
+    MissingPeriod,
+    NonImperativeSummary,
+    SecondPersonVoice,
 )
 
 
@@ -90,29 +90,29 @@ def parsed(text: str):
 
 
 # ---------------------------------------------------------------------------
-# D200 — Imperative voice
+# NonImperativeSummary — Imperative voice
 # ---------------------------------------------------------------------------
 
 
-def test_d200_imperative():
+def test_non_imperative_summary_imperative_no_fire():
     """'Return the value.' uses imperative voice and should not fire."""
     target = make_target(docstring=parsed("Return the value."))
-    diagnostics = D200().evaluate(target, make_context())
+    diagnostics = NonImperativeSummary().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d200_non_imperative_third_person():
-    """'Returns the value.' is third-person and should fire D200."""
+def test_non_imperative_summary_third_person_fires():
+    """'Returns the value.' is third-person and should fire."""
     target = make_target(docstring=parsed("Returns the value."))
-    diagnostics = D200().evaluate(target, make_context())
+    diagnostics = NonImperativeSummary().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "non-imperative-summary"
 
 
-def test_d200_non_imperative_gerund():
-    """Gerund form (e.g. 'Returning the value.') should fire D200."""
+def test_non_imperative_summary_gerund_fires():
+    """Gerund form (e.g. 'Returning the value.') should fire."""
     target = make_target(docstring=parsed("Returning the value."))
-    diagnostics = D200().evaluate(target, make_context())
+    diagnostics = NonImperativeSummary().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "non-imperative-summary"
 
@@ -120,29 +120,29 @@ def test_d200_non_imperative_gerund():
 
 
 # ---------------------------------------------------------------------------
-# D201 — Terminal period
+# MissingPeriod — Terminal period
 # ---------------------------------------------------------------------------
 
 
-def test_d201_missing_period():
-    """Summary without a trailing period fires D201."""
+def test_missing_period_fires():
+    """Summary without a trailing period fires."""
     target = make_target(docstring=parsed("Do something"))
-    diagnostics = D201().evaluate(target, make_context())
+    diagnostics = MissingPeriod().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-period"
 
 
-def test_d201_period_present():
-    """Summary with a trailing period does not fire D201."""
+def test_missing_period_present_no_fire():
+    """Summary with a trailing period does not fire."""
     target = make_target(docstring=parsed("Do something."))
-    diagnostics = D201().evaluate(target, make_context())
+    diagnostics = MissingPeriod().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d201_fix_plan():
-    """D201 diagnostic includes a fix plan with the corrected text."""
+def test_missing_period_fix_plan():
+    """MissingPeriod diagnostic includes a fix plan with the corrected text."""
     target = make_target(docstring=parsed("Do something"))
-    diagnostics = D201().evaluate(target, make_context())
+    diagnostics = MissingPeriod().evaluate(target, make_context())
     assert len(diagnostics) == 1
     diag = diagnostics[0]
     assert diag.fix is not None
@@ -153,12 +153,12 @@ def test_d201_fix_plan():
 
 
 # ---------------------------------------------------------------------------
-# D202 — Blank line after summary
+# MissingBlankAfterSummary — Blank line after summary
 # ---------------------------------------------------------------------------
 
 
-def test_d202_missing_blank_line():
-    """Summary immediately followed by section content (no blank line) fires D202."""
+def test_missing_blank_after_summary_fires():
+    """Summary immediately followed by section content (no blank line) fires."""
     # No blank line between summary and the Notes section header.
     doc_text = (
         "Do something.\n"
@@ -167,13 +167,13 @@ def test_d202_missing_blank_line():
         "Some extra detail.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D202().evaluate(target, make_context())
+    diagnostics = MissingBlankAfterSummary().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-blank-after-summary"
 
 
-def test_d202_blank_line_present():
-    """Summary followed by a blank line and body does not fire D202."""
+def test_missing_blank_after_summary_present_no_fire():
+    """Summary followed by a blank line and body does not fire."""
     doc_text = (
         "Do something.\n"
         "\n"
@@ -182,110 +182,110 @@ def test_d202_blank_line_present():
         "Some extra detail.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D202().evaluate(target, make_context())
+    diagnostics = MissingBlankAfterSummary().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d202_summary_only_no_fire():
-    """Docstring with only a summary line does not fire D202."""
+def test_missing_blank_after_summary_summary_only_no_fire():
+    """Docstring with only a summary line does not fire."""
     target = make_target(docstring=parsed("Do something."))
-    diagnostics = D202().evaluate(target, make_context())
+    diagnostics = MissingBlankAfterSummary().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 
 # ---------------------------------------------------------------------------
-# D203 — First-person voice
+# FirstPersonVoice — First-person voice
 # ---------------------------------------------------------------------------
 
 
-def test_d203_first_person():
-    """'I compute the sum.' uses first-person and fires D203."""
+def test_first_person_voice_fires():
+    """'I compute the sum.' uses first-person and fires."""
     target = make_target(docstring=parsed("I compute the sum."))
-    diagnostics = D203().evaluate(target, make_context())
+    diagnostics = FirstPersonVoice().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "first-person-voice"
 
 
-def test_d203_third_person_no_fire():
-    """Third-person summary does not fire D203."""
+def test_first_person_voice_third_person_no_fire():
+    """Third-person summary does not fire."""
     target = make_target(docstring=parsed("Compute the sum."))
-    diagnostics = D203().evaluate(target, make_context())
+    diagnostics = FirstPersonVoice().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d203_my_fires():
-    """'my' is a first-person pronoun and fires D203."""
+def test_first_person_voice_my_fires():
+    """'my' is a first-person pronoun and fires."""
     target = make_target(docstring=parsed("Store my result."))
-    diagnostics = D203().evaluate(target, make_context())
+    diagnostics = FirstPersonVoice().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "first-person-voice"
 
 
 
 # ---------------------------------------------------------------------------
-# D204 — Second-person voice
+# SecondPersonVoice — Second-person voice
 # ---------------------------------------------------------------------------
 
 
-def test_d204_second_person():
-    """'You should call this.' uses second-person and fires D204."""
+def test_second_person_voice_fires():
+    """'You should call this.' uses second-person and fires."""
     target = make_target(docstring=parsed("You should call this."))
-    diagnostics = D204().evaluate(target, make_context())
+    diagnostics = SecondPersonVoice().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "second-person-voice"
 
 
-def test_d204_your_fires():
-    """'Pass your config.' fires D204."""
+def test_second_person_voice_your_fires():
+    """'Pass your config.' fires."""
     target = make_target(docstring=parsed("Pass your config."))
-    diagnostics = D204().evaluate(target, make_context())
+    diagnostics = SecondPersonVoice().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "second-person-voice"
 
 
-def test_d204_third_person_no_fire():
-    """Third-person summary does not fire D204."""
+def test_second_person_voice_third_person_no_fire():
+    """Third-person summary does not fire."""
     target = make_target(docstring=parsed("Compute the sum."))
-    diagnostics = D204().evaluate(target, make_context())
+    diagnostics = SecondPersonVoice().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 
 # ---------------------------------------------------------------------------
-# D205 — Markdown syntax
+# MarkdownInDocstring — Markdown syntax
 # ---------------------------------------------------------------------------
 
 
-def test_d205_markdown_heading():
-    """A Markdown ATX heading in the docstring fires D205."""
+def test_markdown_in_docstring_heading_fires():
+    """A Markdown ATX heading in the docstring fires."""
     doc_text = "Do something.\n\n# Heading\n\nSome text.\n"
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D205().evaluate(target, make_context())
+    diagnostics = MarkdownInDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "markdown-in-docstring"
 
 
-def test_d205_markdown_link():
-    """A Markdown inline link in the docstring fires D205."""
+def test_markdown_in_docstring_link_fires():
+    """A Markdown inline link in the docstring fires."""
     doc_text = "Do something.\n\nSee `[the docs](https://example.com)` for details.\n"
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D205().evaluate(target, make_context())
+    diagnostics = MarkdownInDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "markdown-in-docstring"
 
 
-def test_d205_markdown_fence():
-    """A Markdown fenced code block in the docstring fires D205."""
+def test_markdown_in_docstring_fence_fires():
+    """A Markdown fenced code block in the docstring fires."""
     doc_text = "Do something.\n\n```python\nprint('hi')\n```\n"
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D205().evaluate(target, make_context())
+    diagnostics = MarkdownInDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "markdown-in-docstring"
 
 
-def test_d205_rst_is_fine():
-    """Normal RST-style markup does not fire D205."""
+def test_markdown_in_docstring_rst_no_fire():
+    """Normal RST-style markup does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Use :func:`foo` or :class:`Bar` for details.\n\n"
@@ -294,31 +294,31 @@ def test_d205_rst_is_fine():
         "See also ``some_function``.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D205().evaluate(target, make_context())
+    diagnostics = MarkdownInDocstring().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D200 — Class targets
+# NonImperativeSummary — Class targets
 # ---------------------------------------------------------------------------
 
 
-def test_d200_class_target_not_fired():
+def test_non_imperative_summary_class_target_not_fired():
     """non-imperative-summary does not fire on CLASS targets (noun phrases are valid).
 
     The runner skips rules whose ``applies_to`` does not include the target
-    kind, so CLASS must not appear in D200's ``applies_to`` set.
+    kind, so CLASS must not appear in NonImperativeSummary's ``applies_to`` set.
     """
-    assert TargetKind.CLASS not in D200.metadata.applies_to
+    assert TargetKind.CLASS not in NonImperativeSummary.metadata.applies_to
 
 
 # ---------------------------------------------------------------------------
-# D203 — Code block filtering
+# FirstPersonVoice — Code block filtering
 # ---------------------------------------------------------------------------
 
 
-def test_d203_my_in_code_block_no_fire():
-    """'my' inside a code example should not fire D203."""
+def test_first_person_voice_my_in_code_block_no_fire():
+    """'my' inside a code example should not fire."""
     doc_text = (
         "Compute the sum.\n\n"
         "Examples\n"
@@ -327,12 +327,12 @@ def test_d203_my_in_code_block_no_fire():
         ">>> print(my_var)\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D203().evaluate(target, make_context())
+    diagnostics = FirstPersonVoice().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d203_my_in_rst_code_block_no_fire():
-    """'my' inside an RST code-block should not fire D203."""
+def test_first_person_voice_my_in_rst_code_block_no_fire():
+    """'my' inside an RST code-block should not fire."""
     doc_text = (
         "Compute the sum.\n\n"
         ".. code-block:: python\n\n"
@@ -340,16 +340,16 @@ def test_d203_my_in_rst_code_block_no_fire():
         "    print(my_var)\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D203().evaluate(target, make_context())
+    diagnostics = FirstPersonVoice().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D202 — reST title header
+# MissingBlankAfterSummary — reST title header
 # ---------------------------------------------------------------------------
 
 
-def test_d202_rst_title_not_misidentified():
+def test_missing_blank_after_summary_rst_title_not_misidentified():
     """A reST title header should not cause a false positive for missing blank line."""
     doc_text = (
         "mymodule.core\n"
@@ -360,5 +360,5 @@ def test_d202_rst_title_not_misidentified():
         "Some details.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D202().evaluate(target, make_context())
+    diagnostics = MissingBlankAfterSummary().evaluate(target, make_context())
     assert diagnostics == ()

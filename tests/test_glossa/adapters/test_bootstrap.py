@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from glossa.adapters.bootstrap import bootstrap, create_linter
+from glossa.adapters.bootstrap import bootstrap
 from glossa.application.service import GlossaService
 from glossa.errors import PluginLoadError
 
 
-def test_create_linter_returns_service(tmp_path) -> None:
-    service = create_linter(base_path=tmp_path)
+def test_bootstrap_returns_service(tmp_path) -> None:
+    service = bootstrap(base_path=tmp_path)
     assert isinstance(service, GlossaService)
 
 

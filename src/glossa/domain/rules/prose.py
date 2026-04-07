@@ -51,7 +51,7 @@ def _is_non_imperative(summary_text: str) -> bool:
     return False
 
 
-class D200:
+class NonImperativeSummary:
     """Summary line is not imperative where imperative voice is required."""
 
     metadata = RuleMetadata(
@@ -92,7 +92,7 @@ class D200:
 # ---------------------------------------------------------------------------
 
 
-class D201:
+class MissingPeriod:
     """Summary line missing terminal period."""
 
     metadata = RuleMetadata(
@@ -167,7 +167,7 @@ def _has_blank_line_after_summary(raw_body: str) -> bool:
     return not lines[next_index].strip()
 
 
-class D202:
+class MissingBlankAfterSummary:
     """Missing blank line after summary when body follows."""
 
     metadata = RuleMetadata(
@@ -259,7 +259,7 @@ def _filter_code_lines(lines: tuple[str, ...]) -> str:
 _FIRST_PERSON_RE = re.compile(r"\b(I|my|me|we|our|us)\b")
 
 
-class D203:
+class FirstPersonVoice:
     """First-person voice in docstring."""
 
     metadata = RuleMetadata(
@@ -298,7 +298,7 @@ class D203:
 _SECOND_PERSON_RE = re.compile(r"\b(you|your|yours)\b", re.IGNORECASE)
 
 
-class D204:
+class SecondPersonVoice:
     """Second-person voice in docstring."""
 
     metadata = RuleMetadata(
@@ -350,7 +350,7 @@ def _detect_markdown(text: str) -> str | None:
     return None
 
 
-class D205:
+class MarkdownInDocstring:
     """Markdown syntax where RST is required."""
 
     metadata = RuleMetadata(

@@ -27,7 +27,7 @@ _GROUP = "anti-patterns"
 # ---------------------------------------------------------------------------
 
 
-class D500:
+class EmptyDocstring:
     """Fires when a docstring exists but its body is empty or whitespace-only."""
 
     metadata = RuleMetadata(
@@ -85,7 +85,7 @@ def _is_trivial_summary(summary_text: str, method_name: str) -> bool:
     return False
 
 
-class D501:
+class TrivialDunderDocstring:
     """Fires when a dunder method docstring trivially restates the method name."""
 
     metadata = RuleMetadata(
@@ -133,7 +133,7 @@ class D501:
 # ---------------------------------------------------------------------------
 
 
-class D502:
+class RedundantReturnsNone:
     """Fires when a void callable has a Returns section listing only None."""
 
     metadata = RuleMetadata(
@@ -194,7 +194,7 @@ class D502:
 # rst-note-warning-directive
 # ---------------------------------------------------------------------------
 
-_D503_DIRECTIVES = frozenset({"note", "warning"})
+_RST_NOTE_WARNING_DIRECTIVES = frozenset({"note", "warning"})
 
 _DIRECTIVE_TO_SECTION: dict[str, str] = {
     "note": "Notes",
@@ -202,7 +202,7 @@ _DIRECTIVE_TO_SECTION: dict[str, str] = {
 }
 
 
-class D503:
+class RstNoteWarningDirective:
     """Fires when prose contains a RST ``.. note::`` or ``.. warning::`` directive."""
 
     metadata = RuleMetadata(
@@ -220,7 +220,7 @@ class D503:
         if target.docstring is None:
             return ()
         all_lines = target.docstring.all_text_lines()
-        directives = scan_rst_directives(all_lines, _D503_DIRECTIVES)
+        directives = scan_rst_directives(all_lines, _RST_NOTE_WARNING_DIRECTIVES)
         if not directives:
             return ()
 

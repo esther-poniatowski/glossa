@@ -55,7 +55,7 @@ def _docstring_param_names(target: LintTarget) -> frozenset[str]:
 # ---------------------------------------------------------------------------
 
 
-class D300:
+class MalformedUnderline:
     """Section underline is malformed."""
 
     metadata = RuleMetadata(
@@ -114,7 +114,7 @@ class D300:
 # ---------------------------------------------------------------------------
 
 
-class D301:
+class SectionOrder:
     """Section order violates NumPy policy."""
 
     metadata = RuleMetadata(
@@ -167,7 +167,7 @@ class D301:
 # ---------------------------------------------------------------------------
 
 
-class D302:
+class UndocumentedParameter:
     """Undocumented parameter present in signature."""
 
     metadata = RuleMetadata(
@@ -205,7 +205,7 @@ class D302:
 # ---------------------------------------------------------------------------
 
 
-class D303:
+class ExtraneousParameter:
     """Extraneous parameter appears in docstring."""
 
     metadata = RuleMetadata(
@@ -243,7 +243,7 @@ class D303:
 # ---------------------------------------------------------------------------
 
 
-class D304:
+class MalformedDeprecation:
     """Deprecation directive is malformed or misplaced."""
 
     metadata = RuleMetadata(
@@ -299,13 +299,13 @@ class D304:
 # rst-directive-instead-of-section
 # ---------------------------------------------------------------------------
 
-_D305_DIRECTIVES = frozenset({
+_RST_DIRECTIVE_SECTION_DIRECTIVES = frozenset({
     "seealso", "see-also", "admonition",
     "attention", "caution", "danger", "error", "hint", "important", "tip",
 })
 
 
-class D305:
+class RstDirectiveInsteadOfSection:
     """RST directive used where a NumPy section exists."""
 
     metadata = RuleMetadata(
@@ -325,7 +325,7 @@ class D305:
         if target.docstring is None:
             return ()
         all_lines = target.docstring.all_text_lines()
-        found = scan_rst_directives(all_lines, _D305_DIRECTIVES)
+        found = scan_rst_directives(all_lines, _RST_DIRECTIVE_SECTION_DIRECTIVES)
         if not found:
             return ()
 
@@ -344,7 +344,7 @@ class D305:
 # ---------------------------------------------------------------------------
 
 
-class D306:
+class ExamplesInNonEntryModule:
     """Examples appears in a non-entry-point module docstring."""
 
     metadata = RuleMetadata(

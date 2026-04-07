@@ -68,11 +68,3 @@ def _validate_rule_options(config: GlossaConfig, registry: RuleRegistry) -> None
                     raise ConfigurationError(
                         f"Invalid value for {path}: {exc}"
                     ) from exc
-
-
-def create_linter(
-    base_path: Path | None = None,
-    config_path: str | None = None,
-) -> GlossaService:
-    """Backward-compatible factory for the programmatic API."""
-    return bootstrap(base_path=base_path, config_path=config_path)

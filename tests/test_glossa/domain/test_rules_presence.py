@@ -1,4 +1,4 @@
-"""Tests for D1xx presence and coverage rules."""
+"""Tests for presence and coverage rules."""
 
 from __future__ import annotations
 
@@ -30,18 +30,18 @@ from glossa.domain.contracts import (
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
 from glossa.domain.rules.presence import (
-    D100,
-    D101,
-    D102,
-    D103,
-    D104,
-    D105,
-    D106,
-    D107,
-    D108,
-    D109,
-    D110,
-    D111,
+    MissingAttributesSection,
+    MissingCallableDocstring,
+    MissingClassDocstring,
+    MissingDeprecationDirective,
+    MissingModuleDocstring,
+    MissingModuleInventory,
+    MissingParametersSection,
+    MissingRaisesSection,
+    MissingReturnsSection,
+    MissingWarnsSection,
+    MissingYieldsSection,
+    ParamsInInitNotClass,
 )
 
 
@@ -115,70 +115,70 @@ def parsed(text: str):
 
 
 # ---------------------------------------------------------------------------
-# D100 — Missing public module docstring
+# MissingModuleDocstring — Missing public module docstring
 # ---------------------------------------------------------------------------
 
 
-def test_d100_missing_module_docstring():
+def test_missing_module_docstring_fires():
     target = make_target(kind=TargetKind.MODULE, visibility=Visibility.PUBLIC, docstring=None)
-    diagnostics = D100().evaluate(target, make_context())
+    diagnostics = MissingModuleDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-module-docstring"
 
 
-def test_d100_present_module_docstring():
+def test_missing_module_docstring_present_no_fire():
     target = make_target(
         kind=TargetKind.MODULE,
         visibility=Visibility.PUBLIC,
         docstring=parsed("Module summary."),
     )
-    diagnostics = D100().evaluate(target, make_context())
+    diagnostics = MissingModuleDocstring().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d100_private_module_not_fired():
+def test_missing_module_docstring_private_no_fire():
     target = make_target(kind=TargetKind.MODULE, visibility=Visibility.PRIVATE, docstring=None)
-    diagnostics = D100().evaluate(target, make_context())
+    diagnostics = MissingModuleDocstring().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D101 — Missing public class docstring
+# MissingClassDocstring — Missing public class docstring
 # ---------------------------------------------------------------------------
 
 
-def test_d101_missing_class_docstring():
+def test_missing_class_docstring_fires():
     target = make_target(kind=TargetKind.CLASS, visibility=Visibility.PUBLIC, docstring=None)
-    diagnostics = D101().evaluate(target, make_context())
+    diagnostics = MissingClassDocstring().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-class-docstring"
 
 
-def test_d101_present_class_docstring():
+def test_missing_class_docstring_present_no_fire():
     target = make_target(
         kind=TargetKind.CLASS,
         visibility=Visibility.PUBLIC,
         docstring=parsed("A class."),
     )
-    diagnostics = D101().evaluate(target, make_context())
+    diagnostics = MissingClassDocstring().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D102 — Missing public callable docstring
+# MissingCallableDocstring — Missing public callable docstring
 # ---------------------------------------------------------------------------
 
 
-def test_d102_missing_callable_docstring():
-    rule = D102()
+def test_missing_callable_docstring_fires():
+    rule = MissingCallableDocstring()
     target = make_target(kind=TargetKind.FUNCTION, visibility=Visibility.PUBLIC, docstring=None)
     diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-callable-docstring"
 
 
-def test_d102_present_callable_docstring():
-    rule = D102()
+def test_missing_callable_docstring_present_no_fire():
+    rule = MissingCallableDocstring()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PUBLIC,
@@ -188,9 +188,9 @@ def test_d102_present_callable_docstring():
     assert diagnostics == ()
 
 
-def test_d102_private_skipped():
+def test_missing_callable_docstring_private_skipped():
     """PRIVATE callable does not fire when include_private_helpers is False (default)."""
-    rule = D102()
+    rule = MissingCallableDocstring()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PRIVATE,
@@ -200,12 +200,12 @@ def test_d102_private_skipped():
     assert diagnostics == ()
 
 
-def test_d102_private_fires_when_opted_in():
+def test_missing_callable_docstring_private_opted_in_no_fire():
     """PRIVATE callable fires when include_private_helpers is True."""
-    # D102 only fires for PUBLIC visibility regardless of option — private helpers
-    # are simply not flagged even with include_private_helpers=True because D102
-    # guards on target.visibility is Visibility.PUBLIC at the end.
-    rule = D102()
+    # MissingCallableDocstring only fires for PUBLIC visibility regardless of option
+    # — private helpers are simply not flagged even with include_private_helpers=True
+    # because the rule guards on target.visibility is Visibility.PUBLIC at the end.
+    rule = MissingCallableDocstring()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PRIVATE,
@@ -213,13 +213,13 @@ def test_d102_private_fires_when_opted_in():
     )
     diagnostics = rule.evaluate(target, make_context({"include_private_helpers": True}, rule=rule))
     # include_private_helpers=True only removes the early-exit guard; the final
-    # check still requires PUBLIC visibility for D102 to fire.
+    # check still requires PUBLIC visibility for the rule to fire.
     assert diagnostics == ()
 
 
-def test_d102_test_target_skipped():
+def test_missing_callable_docstring_test_target_skipped():
     """Test functions are skipped when include_test_functions is False."""
-    rule = D102()
+    rule = MissingCallableDocstring()
     target = make_target(
         kind=TargetKind.FUNCTION,
         visibility=Visibility.PUBLIC,
@@ -231,7 +231,7 @@ def test_d102_test_target_skipped():
 
 
 # ---------------------------------------------------------------------------
-# D103 — Missing Parameters section
+# MissingParametersSection — Missing Parameters section
 # ---------------------------------------------------------------------------
 
 
@@ -247,19 +247,19 @@ def _make_sig_with_params(*names: str) -> SignatureFacts:
     )
 
 
-def test_d103_missing_parameters_section():
-    """Function with params but no Parameters section fires D103."""
+def test_missing_parameters_section_fires():
+    """Function with params but no Parameters section fires."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         signature=_make_sig_with_params("x", "y"),
     )
-    diagnostics = D103().evaluate(target, make_context())
+    diagnostics = MissingParametersSection().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-parameters-section"
 
 
-def test_d103_parameters_present():
+def test_missing_parameters_section_present_no_fire():
     """Function with a Parameters section does not fire."""
     doc_text = (
         "Do something.\n\n"
@@ -273,34 +273,34 @@ def test_d103_parameters_present():
         docstring=parsed(doc_text),
         signature=_make_sig_with_params("x"),
     )
-    diagnostics = D103().evaluate(target, make_context())
+    diagnostics = MissingParametersSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d103_no_params_no_fire():
+def test_missing_parameters_section_no_params_no_fire():
     """Function with no documentable params does not fire."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         signature=_make_sig_with_params(),
     )
-    diagnostics = D103().evaluate(target, make_context())
+    diagnostics = MissingParametersSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d103_self_excluded():
+def test_missing_parameters_section_self_excluded():
     """'self' is excluded from documentable params."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         signature=_make_sig_with_params("self"),
     )
-    diagnostics = D103().evaluate(target, make_context())
+    diagnostics = MissingParametersSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D104 — Missing Returns section
+# MissingReturnsSection — Missing Returns section
 # ---------------------------------------------------------------------------
 
 
@@ -313,19 +313,19 @@ def _make_sig_returns(returns_value: bool = True, yields_value: bool = False) ->
     )
 
 
-def test_d104_missing_returns():
-    """Function that returns a value but has no Returns section fires D104."""
+def test_missing_returns_section_fires():
+    """Function that returns a value but has no Returns section fires."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         signature=_make_sig_returns(returns_value=True),
     )
-    diagnostics = D104().evaluate(target, make_context())
+    diagnostics = MissingReturnsSection().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-returns-section"
 
 
-def test_d104_returns_section_present():
+def test_missing_returns_section_present_no_fire():
     """Function with a Returns section does not fire."""
     doc_text = (
         "Do something.\n\n"
@@ -339,39 +339,39 @@ def test_d104_returns_section_present():
         docstring=parsed(doc_text),
         signature=_make_sig_returns(returns_value=True),
     )
-    diagnostics = D104().evaluate(target, make_context())
+    diagnostics = MissingReturnsSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d104_no_return_value_no_fire():
+def test_missing_returns_section_no_return_value_no_fire():
     """Function that does not return a value does not fire."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         signature=_make_sig_returns(returns_value=False),
     )
-    diagnostics = D104().evaluate(target, make_context())
+    diagnostics = MissingReturnsSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D105 — Missing Yields section
+# MissingYieldsSection — Missing Yields section
 # ---------------------------------------------------------------------------
 
 
-def test_d105_missing_yields():
-    """Generator function with no Yields section fires D105."""
+def test_missing_yields_section_fires():
+    """Generator function with no Yields section fires."""
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Generate values."),
         signature=_make_sig_returns(returns_value=False, yields_value=True),
     )
-    diagnostics = D105().evaluate(target, make_context())
+    diagnostics = MissingYieldsSection().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-yields-section"
 
 
-def test_d105_yields_section_present():
+def test_missing_yields_section_present_no_fire():
     """Generator with a Yields section does not fire."""
     doc_text = (
         "Generate values.\n\n"
@@ -385,29 +385,29 @@ def test_d105_yields_section_present():
         docstring=parsed(doc_text),
         signature=_make_sig_returns(returns_value=False, yields_value=True),
     )
-    diagnostics = D105().evaluate(target, make_context())
+    diagnostics = MissingYieldsSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D106 — Missing Raises section
+# MissingRaisesSection — Missing Raises section
 # ---------------------------------------------------------------------------
 
 
-def test_d106_missing_raises():
-    """High-confidence raise with no Raises section fires D106."""
+def test_missing_raises_section_fires():
+    """High-confidence raise with no Raises section fires."""
     exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RAISE, confidence=Confidence.HIGH)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         exceptions=(exc,),
     )
-    diagnostics = D106().evaluate(target, make_context())
+    diagnostics = MissingRaisesSection().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "missing-raises-section"
 
 
-def test_d106_raises_section_present():
+def test_missing_raises_section_present_no_fire():
     """High-confidence raise with a Raises section does not fire."""
     doc_text = (
         "Do something.\n\n"
@@ -422,36 +422,36 @@ def test_d106_raises_section_present():
         docstring=parsed(doc_text),
         exceptions=(exc,),
     )
-    diagnostics = D106().evaluate(target, make_context())
+    diagnostics = MissingRaisesSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d106_low_confidence_no_fire():
-    """Low-confidence raise does not trigger D106."""
+def test_missing_raises_section_low_confidence_no_fire():
+    """Low-confidence raise does not trigger the rule."""
     exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RAISE, confidence=Confidence.LOW)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         exceptions=(exc,),
     )
-    diagnostics = D106().evaluate(target, make_context())
+    diagnostics = MissingRaisesSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d106_reraise_excluded():
-    """High-confidence reraise is excluded from D106 checks."""
+def test_missing_raises_section_reraise_excluded():
+    """High-confidence reraise is excluded from checks."""
     exc = ExceptionFact(type_name="ValueError", evidence=ExceptionEvidence.RERAISE, confidence=Confidence.HIGH)
     target = make_target(
         kind=TargetKind.FUNCTION,
         docstring=parsed("Do something."),
         exceptions=(exc,),
     )
-    diagnostics = D106().evaluate(target, make_context())
+    diagnostics = MissingRaisesSection().evaluate(target, make_context())
     assert diagnostics == ()
 
 
 # ---------------------------------------------------------------------------
-# D108 — Missing module inventory
+# MissingModuleInventory — Missing module inventory
 # ---------------------------------------------------------------------------
 
 
@@ -467,9 +467,9 @@ def _make_symbols(n_classes: int = 0, n_functions: int = 0) -> tuple[ModuleSymbo
     return classes + functions
 
 
-def test_d108_missing_inventory():
-    """Module with many public symbols but no inventory fires D108."""
-    rule = D108()
+def test_missing_module_inventory_fires():
+    """Module with many public symbols but no inventory fires."""
+    rule = MissingModuleInventory()
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
@@ -480,9 +480,9 @@ def test_d108_missing_inventory():
     assert rules.count("missing-module-inventory") == 2
 
 
-def test_d108_below_threshold_no_fire():
+def test_missing_module_inventory_below_threshold_no_fire():
     """Module with fewer public symbols than the threshold does not fire."""
-    rule = D108()
+    rule = MissingModuleInventory()
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
@@ -492,9 +492,9 @@ def test_d108_below_threshold_no_fire():
     assert diagnostics == ()
 
 
-def test_d108_inventory_present_no_fire():
+def test_missing_module_inventory_present_no_fire():
     """Module with inventory sections does not fire."""
-    rule = D108()
+    rule = MissingModuleInventory()
     doc_text = (
         "A module.\n\n"
         "Classes\n"
@@ -516,9 +516,9 @@ def test_d108_inventory_present_no_fire():
     assert diagnostics == ()
 
 
-def test_d108_custom_threshold():
+def test_missing_module_inventory_custom_threshold():
     """Custom inventory_threshold option is respected."""
-    rule = D108()
+    rule = MissingModuleInventory()
     # With threshold=3, two public classes should not fire.
     target = make_target(
         kind=TargetKind.MODULE,

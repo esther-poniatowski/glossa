@@ -1,4 +1,4 @@
-"""Tests for D3xx section structure and placement rules."""
+"""Tests for section structure and placement rules."""
 
 from __future__ import annotations
 
@@ -24,12 +24,12 @@ from glossa.domain.contracts import (
 from glossa.domain.parsing import parse_docstring
 from glossa.domain.rules import RuleContext
 from glossa.domain.rules.structure import (
-    D300,
-    D301,
-    D302,
-    D303,
-    D304,
-    D305,
+    ExtraneousParameter,
+    MalformedDeprecation,
+    MalformedUnderline,
+    RstDirectiveInsteadOfSection,
+    SectionOrder,
+    UndocumentedParameter,
 )
 
 
@@ -88,7 +88,7 @@ def make_context(options: dict | None = None) -> RuleContext:
 
 
 def make_context_with_section_order(options: dict | None = None) -> RuleContext:
-    """Return a RuleContext with section order for D301 tests."""
+    """Return a RuleContext with section order for SectionOrder tests."""
     return RuleContext(
         policy=RulePolicy(
             enabled=True,
@@ -105,12 +105,12 @@ def parsed(text: str):
 
 
 # ---------------------------------------------------------------------------
-# D300 -- malformed-underline
+# MalformedUnderline -- malformed-underline
 # ---------------------------------------------------------------------------
 
 
-def test_d300_correct_underline():
-    """Section with correctly sized dash underline does not fire D300."""
+def test_malformed_underline_correct_no_fire():
+    """Section with correctly sized dash underline does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -119,12 +119,12 @@ def test_d300_correct_underline():
         "    The value.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D300().evaluate(target, make_context())
+    diagnostics = MalformedUnderline().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d300_wrong_underline_length():
-    """Section with wrong underline length fires D300."""
+def test_malformed_underline_wrong_length_fires():
+    """Section with wrong underline length fires."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -133,18 +133,18 @@ def test_d300_wrong_underline_length():
         "    The value.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D300().evaluate(target, make_context())
+    diagnostics = MalformedUnderline().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "malformed-underline"
 
 
 # ---------------------------------------------------------------------------
-# D301 -- section-order
+# SectionOrder -- section-order
 # ---------------------------------------------------------------------------
 
 
-def test_d301_correct_order():
-    """Sections in canonical NumPy order do not fire D301."""
+def test_section_order_correct_no_fire():
+    """Sections in canonical NumPy order do not fire."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -158,12 +158,12 @@ def test_d301_correct_order():
         "    The result.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D301().evaluate(target, make_context_with_section_order())
+    diagnostics = SectionOrder().evaluate(target, make_context_with_section_order())
     assert diagnostics == ()
 
 
-def test_d301_reversed_order():
-    """Returns before Parameters fires D301."""
+def test_section_order_reversed_fires():
+    """Returns before Parameters fires."""
     doc_text = (
         "Do something.\n\n"
         "Returns\n"
@@ -177,13 +177,13 @@ def test_d301_reversed_order():
         "    The value.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D301().evaluate(target, make_context_with_section_order())
+    diagnostics = SectionOrder().evaluate(target, make_context_with_section_order())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "section-order"
 
 
 # ---------------------------------------------------------------------------
-# D302 -- undocumented-parameter
+# UndocumentedParameter -- undocumented-parameter
 # ---------------------------------------------------------------------------
 
 
@@ -204,8 +204,8 @@ def _make_sig(*names: str) -> SignatureFacts:
     )
 
 
-def test_d302_all_params_documented():
-    """All signature parameters documented in docstring does not fire D302."""
+def test_undocumented_parameter_all_documented_no_fire():
+    """All signature parameters documented in docstring does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -217,12 +217,12 @@ def test_d302_all_params_documented():
         docstring=parsed(doc_text),
         signature=_make_sig("x"),
     )
-    diagnostics = D302().evaluate(target, make_context())
+    diagnostics = UndocumentedParameter().evaluate(target, make_context())
     assert diagnostics == ()
 
 
-def test_d302_missing_param():
-    """Parameter in signature but missing from docstring fires D302."""
+def test_undocumented_parameter_missing_fires():
+    """Parameter in signature but missing from docstring fires."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -234,18 +234,18 @@ def test_d302_missing_param():
         docstring=parsed(doc_text),
         signature=_make_sig("x", "y"),
     )
-    diagnostics = D302().evaluate(target, make_context())
+    diagnostics = UndocumentedParameter().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "undocumented-parameter"
 
 
 # ---------------------------------------------------------------------------
-# D303 -- extraneous-parameter
+# ExtraneousParameter -- extraneous-parameter
 # ---------------------------------------------------------------------------
 
 
-def test_d303_extra_param_in_docstring():
-    """Parameter in docstring but not in signature fires D303."""
+def test_extraneous_parameter_fires():
+    """Parameter in docstring but not in signature fires."""
     doc_text = (
         "Do something.\n\n"
         "Parameters\n"
@@ -259,49 +259,49 @@ def test_d303_extra_param_in_docstring():
         docstring=parsed(doc_text),
         signature=_make_sig("x"),
     )
-    diagnostics = D303().evaluate(target, make_context())
+    diagnostics = ExtraneousParameter().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "extraneous-parameter"
 
 
 # ---------------------------------------------------------------------------
-# D304 -- malformed-deprecation
+# MalformedDeprecation -- malformed-deprecation
 # ---------------------------------------------------------------------------
 
 
-def test_d304_deprecation_missing_version():
-    """Deprecation directive without a version fires D304."""
+def test_malformed_deprecation_missing_version_fires():
+    """Deprecation directive without a version fires."""
     doc_text = (
         "Do something.\n\n"
         ".. deprecated::\n"
         "    Use something else.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D304().evaluate(target, make_context())
+    diagnostics = MalformedDeprecation().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "malformed-deprecation"
 
 
 # ---------------------------------------------------------------------------
-# D305 -- rst-directive-instead-of-section
+# RstDirectiveInsteadOfSection -- rst-directive-instead-of-section
 # ---------------------------------------------------------------------------
 
 
-def test_d305_rst_hint_directive():
-    """An RST ``.. hint::`` directive fires D305."""
+def test_rst_directive_instead_of_section_hint_fires():
+    """An RST ``.. hint::`` directive fires."""
     doc_text = (
         "Do something.\n\n"
         ".. hint::\n"
         "    This is a hint.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D305().evaluate(target, make_context())
+    diagnostics = RstDirectiveInsteadOfSection().evaluate(target, make_context())
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "rst-directive-instead-of-section"
 
 
-def test_d305_proper_numpy_notes_section():
-    """A proper NumPy Notes section does not fire D305."""
+def test_rst_directive_instead_of_section_numpy_notes_no_fire():
+    """A proper NumPy Notes section does not fire."""
     doc_text = (
         "Do something.\n\n"
         "Notes\n"
@@ -309,5 +309,5 @@ def test_d305_proper_numpy_notes_section():
         "This is a note.\n"
     )
     target = make_target(docstring=parsed(doc_text))
-    diagnostics = D305().evaluate(target, make_context())
+    diagnostics = RstDirectiveInsteadOfSection().evaluate(target, make_context())
     assert diagnostics == ()

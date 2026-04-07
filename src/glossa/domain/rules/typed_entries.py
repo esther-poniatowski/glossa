@@ -195,7 +195,7 @@ def _section_entries_with_annotation(
 # ---------------------------------------------------------------------------
 
 
-class D400:
+class MissingParamType:
     """Parameter type missing from docstring."""
 
     metadata = RuleMetadata(
@@ -225,7 +225,7 @@ class D400:
 # ---------------------------------------------------------------------------
 
 
-class D401:
+class ParamTypeMismatch:
     """Parameter type mismatches annotation."""
 
     metadata = RuleMetadata(
@@ -257,7 +257,7 @@ class D401:
 # ---------------------------------------------------------------------------
 
 
-class D402:
+class MissingReturnType:
     """Return type missing from docstring."""
 
     metadata = RuleMetadata(
@@ -287,7 +287,7 @@ class D402:
 # ---------------------------------------------------------------------------
 
 
-class D403:
+class ReturnTypeMismatch:
     """Return type mismatches annotation."""
 
     metadata = RuleMetadata(
@@ -318,7 +318,7 @@ class D403:
 # ---------------------------------------------------------------------------
 
 
-class D404:
+class YieldTypeMismatch:
     """Yield type missing or mismatched."""
 
     metadata = RuleMetadata(
@@ -355,7 +355,7 @@ class D404:
 # ---------------------------------------------------------------------------
 
 
-class D405:
+class MissingAttributeType:
     """Attribute type missing where Attributes entry exists."""
 
     metadata = RuleMetadata(

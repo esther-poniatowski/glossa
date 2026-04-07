@@ -17,11 +17,11 @@ app = typer.Typer(
 console = Console()
 
 
-def _codes(value: Optional[str]) -> tuple[str, ...] | None:
+def _parse_names(value: Optional[str]) -> tuple[str, ...] | None:
     if value is None:
         return None
-    codes = tuple(code.strip() for code in value.split(",") if code.strip())
-    return codes or None
+    names = tuple(name.strip() for name in value.split(",") if name.strip())
+    return names or None
 
 
 def _output_format(value: str) -> OutputFormat:
@@ -73,10 +73,10 @@ def lint(
         None, "--config", "-c", help="Path to configuration file."
     ),
     select: Optional[str] = typer.Option(
-        None, "--select", help="Comma-separated rule codes to select."
+        None, "--select", help="Comma-separated rule names or groups to select."
     ),
     ignore: Optional[str] = typer.Option(
-        None, "--ignore", help="Comma-separated rule codes to ignore."
+        None, "--ignore", help="Comma-separated rule names or groups to ignore."
     ),
     output_format: Optional[str] = typer.Option(
         None, "--format", "-f", help="Output format: text or json."
@@ -93,8 +93,8 @@ def lint(
     format_override = _output_format(output_format) if output_format is not None else None
     result = service.lint_paths(
         paths,
-        select=_codes(select),
-        ignore=_codes(ignore),
+        select=_parse_names(select),
+        ignore=_parse_names(ignore),
         output_format=format_override,
         color=False if no_color else None,
     )
@@ -114,7 +114,7 @@ def lint(
 
     _report_issues(result.operational_issues)
 
-    # Exit codes per design plan section 8.3
+    # Exit codes: 0 = clean, 1 = diagnostics found, 4 = operational issues
     if result.operational_issues:
         raise typer.Exit(code=4)
     elif all_diagnostics:

@@ -211,7 +211,7 @@ class UnknownSection:
 
 @dataclass(frozen=True)
 class ParseIssue:
-    code: str
+    kind: str
     message: str
     span: DocstringSpan | None
 

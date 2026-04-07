@@ -160,7 +160,7 @@ def _make_missing_fact_section_rule(
 # missing-module-docstring
 # ---------------------------------------------------------------------------
 
-D100 = _make_missing_docstring_rule(
+MissingModuleDocstring = _make_missing_docstring_rule(
     kind=TargetKind.MODULE,
     name="missing-module-docstring",
     description="Missing public module docstring.",
@@ -172,7 +172,7 @@ D100 = _make_missing_docstring_rule(
 # missing-class-docstring
 # ---------------------------------------------------------------------------
 
-D101 = _make_missing_docstring_rule(
+MissingClassDocstring = _make_missing_docstring_rule(
     kind=TargetKind.CLASS,
     name="missing-class-docstring",
     description="Missing public class docstring.",
@@ -185,7 +185,7 @@ D101 = _make_missing_docstring_rule(
 # ---------------------------------------------------------------------------
 
 
-class D102:
+class MissingCallableDocstring:
     """Missing public callable docstring."""
 
     metadata = RuleMetadata(
@@ -228,7 +228,7 @@ class D102:
 # ---------------------------------------------------------------------------
 
 
-class D103:
+class MissingParametersSection:
     """Missing Parameters section for documentable parameters."""
 
     metadata = RuleMetadata(
@@ -262,7 +262,7 @@ class D103:
 # missing-returns-section
 # ---------------------------------------------------------------------------
 
-D104 = _make_missing_section_rule(
+MissingReturnsSection = _make_missing_section_rule(
     name="missing-returns-section",
     description="Missing Returns section where required.",
     message="Missing Returns section where required.",
@@ -280,7 +280,7 @@ D104 = _make_missing_section_rule(
 # missing-yields-section
 # ---------------------------------------------------------------------------
 
-D105 = _make_missing_section_rule(
+MissingYieldsSection = _make_missing_section_rule(
     name="missing-yields-section",
     description="Missing Yields section for generators.",
     message="Missing Yields section for generator.",
@@ -294,7 +294,7 @@ D105 = _make_missing_section_rule(
 # missing-raises-section
 # ---------------------------------------------------------------------------
 
-D106 = _make_missing_fact_section_rule(
+MissingRaisesSection = _make_missing_fact_section_rule(
     name="missing-raises-section",
     description="Missing Raises section for public-contract exceptions.",
     message="Missing Raises section for public-contract exceptions.",
@@ -309,7 +309,7 @@ D106 = _make_missing_fact_section_rule(
 # missing-warns-section
 # ---------------------------------------------------------------------------
 
-D107 = _make_missing_fact_section_rule(
+MissingWarnsSection = _make_missing_fact_section_rule(
     name="missing-warns-section",
     description="Missing Warns section for public warnings.",
     message="Missing Warns section for public warnings.",
@@ -324,7 +324,7 @@ D107 = _make_missing_fact_section_rule(
 # ---------------------------------------------------------------------------
 
 
-class D108:
+class MissingModuleInventory:
     """Missing module Classes/Functions inventory when required."""
 
     metadata = RuleMetadata(
@@ -391,7 +391,7 @@ class D108:
 # ---------------------------------------------------------------------------
 
 
-class D109:
+class MissingAttributesSection:
     """Missing Attributes section where class attributes require documentation."""
 
     metadata = RuleMetadata(
@@ -428,7 +428,7 @@ class D109:
 # ---------------------------------------------------------------------------
 
 
-class D110:
+class ParamsInInitNotClass:
     """Constructor parameters documented in __init__ instead of class docstring."""
 
     metadata = RuleMetadata(
@@ -475,7 +475,7 @@ class D110:
 # ---------------------------------------------------------------------------
 
 
-class D111:
+class MissingDeprecationDirective:
     """Missing deprecation directive for deprecated public API."""
 
     metadata = RuleMetadata(

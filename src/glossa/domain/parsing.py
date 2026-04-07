@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Callable, Literal, Mapping, Sequence
+from typing import Callable, Literal, Mapping
 
 from glossa.domain.models import (
     DeprecationDirective,
@@ -102,19 +102,15 @@ class SectionParseContext:
     body_start: int
 
 
-SectionParseFunc = Callable[[SectionParseContext], SectionNode]
+_SectionParseFunc = Callable[[SectionParseContext], SectionNode]
 
 
 @dataclass(frozen=True)
-class SectionParser:
-    """Associates a set of section titles with a parse function.
-
-    To register a custom section type, construct a ``SectionParser`` and pass
-    it to ``parse_docstring`` via the ``extra_parsers`` argument.
-    """
+class _SectionParser:
+    """Associates a set of section titles with a parse function."""
 
     titles: frozenset[str]
-    parse: SectionParseFunc
+    parse: _SectionParseFunc
 
 
 # ---------------------------------------------------------------------------
@@ -407,20 +403,20 @@ def _parse_see_also_section(ctx: SectionParseContext) -> SeeAlsoSection:
 # Built-in section parser registry
 # ---------------------------------------------------------------------------
 
-_BUILTIN_SECTION_PARSERS: list[SectionParser] = [
-    SectionParser(
+_BUILTIN_SECTION_PARSERS: list[_SectionParser] = [
+    _SectionParser(
         titles=frozenset(_TYPED_SECTION_TITLES.keys()),
         parse=_parse_typed_section,
     ),
-    SectionParser(
+    _SectionParser(
         titles=frozenset(_PROSE_SECTION_TITLES.keys()),
         parse=_parse_prose_section,
     ),
-    SectionParser(
+    _SectionParser(
         titles=frozenset(_INVENTORY_SECTION_TITLES.keys()),
         parse=_parse_inventory_section,
     ),
-    SectionParser(
+    _SectionParser(
         titles=frozenset({_SEE_ALSO_TITLE}),
         parse=_parse_see_also_section,
     ),
@@ -428,27 +424,13 @@ _BUILTIN_SECTION_PARSERS: list[SectionParser] = [
 
 
 def _build_dispatch(
-    extra_parsers: Sequence[SectionParser] | None,
     section_aliases: Mapping[str, str] | None = None,
-) -> dict[str, SectionParseFunc]:
-    """Return a title → parse-function dict from built-ins plus any extras.
-
-    Parameters
-    ----------
-    extra_parsers : Sequence[SectionParser] | None
-        Additional section parsers beyond built-ins.
-    section_aliases : Mapping[str, str] | None
-        Maps custom titles to known section titles (e.g. ``{"Hint": "Notes"}``).
-        The alias inherits the parse function and kind of its target.
-    """
-    dispatch: dict[str, SectionParseFunc] = {}
+) -> dict[str, _SectionParseFunc]:
+    """Return a title → parse-function dict from built-ins plus aliases."""
+    dispatch: dict[str, _SectionParseFunc] = {}
     for entry in _BUILTIN_SECTION_PARSERS:
         for title in entry.titles:
             dispatch[title] = entry.parse
-    if extra_parsers:
-        for entry in extra_parsers:
-            for title in entry.titles:
-                dispatch[title] = entry.parse
     if section_aliases:
         for alias, target in section_aliases.items():
             if target in dispatch:
@@ -546,7 +528,6 @@ def parse_docstring(
     quote: Literal['"""', "'''"],
     string_prefix: str,
     indentation: str,
-    extra_parsers: Sequence[SectionParser] | None = None,
     section_aliases: Mapping[str, str] | None = None,
 ) -> ParsedDocstring:
     """Parse a raw docstring body into a ``ParsedDocstring``.
@@ -561,11 +542,6 @@ def parse_docstring(
         Any string prefix (e.g. ``"r"``).
     indentation : str
         The indentation of the docstring within its source file.
-    extra_parsers : Sequence[SectionParser] | None, optional
-        Additional section parsers to recognise beyond the built-in NumPy
-        vocabulary.  Extra parsers take precedence over built-ins when their
-        title sets overlap.
-
     Returns
     -------
     ParsedDocstring
@@ -573,7 +549,7 @@ def parse_docstring(
     """
     if section_aliases:
         _register_aliases(section_aliases)
-    dispatch = _build_dispatch(extra_parsers, section_aliases)
+    dispatch = _build_dispatch(section_aliases)
 
     if not body.strip():
         syntax = DocstringSyntax(
@@ -628,7 +604,7 @@ def parse_docstring(
         content_start += 1
     elif content_start < len(lines):
         issues.append(
-            ParseIssue(code="P001", message="No summary line found", span=None)
+            ParseIssue(kind="no-summary", message="No summary line found", span=None)
         )
 
     while content_start < len(lines) and not lines[content_start].strip():

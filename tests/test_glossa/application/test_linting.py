@@ -15,7 +15,7 @@ from glossa.application.configuration import (
 )
 from glossa.application.linting import analyze_file
 from glossa.application.registry import RuleRegistry
-from glossa.domain.rules.presence import D100, D102
+from glossa.domain.rules.presence import MissingCallableDocstring, MissingModuleDocstring
 from glossa.infrastructure.extraction import ASTExtractor
 
 
@@ -55,7 +55,7 @@ def test_definition_line_suppression_disables_missing_docstring_rule() -> None:
         source_text=source,
         extraction_port=ASTExtractor(),
         config=_config("missing-callable-docstring"),
-        registry=RuleRegistry(builtins=(D102(),), plugins=()),
+        registry=RuleRegistry(builtins=(MissingCallableDocstring(),), plugins=()),
     )
 
     assert analyzed.diagnostics == ()
@@ -69,7 +69,7 @@ def test_module_header_suppression_disables_missing_module_docstring_rule() -> N
         source_text=source,
         extraction_port=ASTExtractor(),
         config=_config("missing-module-docstring"),
-        registry=RuleRegistry(builtins=(D100(),), plugins=()),
+        registry=RuleRegistry(builtins=(MissingModuleDocstring(),), plugins=()),
     )
 
     assert analyzed.diagnostics == ()
