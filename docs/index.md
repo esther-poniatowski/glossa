@@ -10,22 +10,23 @@ guide/installation
 guide/usage
 guide/cli-reference
 guide/configuration
+guide/rules
 guide/docstring-guide
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: Reference
+:caption: Developer Internals
 
 architecture
-api/index
+internals/index
+design-principles
 ```
 
 ```{toctree}
 :maxdepth: 1
-:caption: Architecture Decisions
+:caption: Other
 
-design-plan
-design-principles
-adr/adr-template
+changelog
+contributing
 ```

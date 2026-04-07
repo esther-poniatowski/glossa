@@ -108,8 +108,10 @@ glossa lint src/ --ignore missing-period,first-person-voice
 | [Usage](docs/guide/usage.md) | Workflows and detailed examples |
 | [CLI Reference](docs/guide/cli-reference.md) | Full command registry and options |
 | [Configuration](docs/guide/configuration.md) | Configuration files, rule selection, fix policies |
-| [Architecture](docs/architecture.md) | Layered design, module organization |
+| [Rule Reference](docs/guide/rules.md) | Complete rule catalog with groups and descriptions |
 | [Docstring Guide](docs/guide/docstring-guide.md) | The numpydoc conventions enforced by glossa |
+| [Architecture](docs/architecture.md) | Layered design, module responsibilities, dependencies |
+| [Internals](docs/internals/index.md) | Contracts, domain models, fix pipeline, rule system |
 
 Full API documentation and rendered guides are also available at
 [esther-poniatowski.github.io/glossa](https://esther-poniatowski.github.io/glossa/).
