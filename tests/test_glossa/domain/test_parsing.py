@@ -540,3 +540,85 @@ def test_star_params():
             assert entry.type_text == "tuple"
         elif entry.name == "**kwargs":
             assert entry.type_text == "dict"
+
+
+# ---------------------------------------------------------------------------
+# 13. Arguments alias for Parameters
+# ---------------------------------------------------------------------------
+
+
+def test_arguments_alias_for_parameters():
+    """'Arguments' section should be parsed as Parameters."""
+    doc_text = (
+        "Do something.\n\n"
+        "Arguments\n"
+        "---------\n"
+        "x : int\n"
+        "    The input.\n"
+    )
+    result = parse_docstring(body=doc_text, quote='"""', string_prefix="", indentation="    ")
+    assert result.summary is not None
+    params = result.typed_section(TypedSectionKind.PARAMETERS)
+    assert params is not None
+    assert len(params.entries) == 1
+    assert params.entries[0].name == "x"
+
+
+# ---------------------------------------------------------------------------
+# 14. reST title skip in summary
+# ---------------------------------------------------------------------------
+
+
+def test_rst_title_skipped_in_summary():
+    """A leading reST title+underline should be skipped; real summary extracted."""
+    doc_text = (
+        "mymodule.core\n"
+        "=============\n\n"
+        "Core utilities for the framework.\n"
+    )
+    result = parse_docstring(body=doc_text, quote='"""', string_prefix="", indentation="    ")
+    assert result.summary is not None
+    assert result.summary.text == "Core utilities for the framework."
+
+
+# ---------------------------------------------------------------------------
+# 15. Section aliases
+# ---------------------------------------------------------------------------
+
+
+def test_section_aliases():
+    """Custom section aliases should map to known section kinds."""
+    doc_text = (
+        "Do something.\n\n"
+        "Hint\n"
+        "----\n"
+        "This is a hint.\n"
+    )
+    result = parse_docstring(
+        body=doc_text, quote='"""', string_prefix="", indentation="    ",
+        section_aliases={"Hint": "Notes"},
+    )
+    assert len(result.sections) == 1
+    section = result.sections[0]
+    assert isinstance(section, ProseSection)
+    assert section.kind is ProseSectionKind.NOTES
+
+
+# ---------------------------------------------------------------------------
+# 16. Usage section
+# ---------------------------------------------------------------------------
+
+
+def test_usage_section():
+    """Usage should be recognized as a built-in prose section."""
+    doc_text = (
+        "Do something.\n\n"
+        "Usage\n"
+        "-----\n"
+        "Run the command.\n"
+    )
+    result = parse_docstring(body=doc_text, quote='"""', string_prefix="", indentation="    ")
+    assert len(result.sections) == 1
+    section = result.sections[0]
+    assert isinstance(section, ProseSection)
+    assert section.kind is ProseSectionKind.USAGE

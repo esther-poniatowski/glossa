@@ -298,3 +298,67 @@ def test_d205_rst_is_fine():
     assert diagnostics == ()
 
 
+# ---------------------------------------------------------------------------
+# D200 — Class targets
+# ---------------------------------------------------------------------------
+
+
+def test_d200_class_target_not_fired():
+    """non-imperative-summary does not fire on CLASS targets (noun phrases are valid).
+
+    The runner skips rules whose ``applies_to`` does not include the target
+    kind, so CLASS must not appear in D200's ``applies_to`` set.
+    """
+    assert TargetKind.CLASS not in D200.metadata.applies_to
+
+
+# ---------------------------------------------------------------------------
+# D203 — Code block filtering
+# ---------------------------------------------------------------------------
+
+
+def test_d203_my_in_code_block_no_fire():
+    """'my' inside a code example should not fire D203."""
+    doc_text = (
+        "Compute the sum.\n\n"
+        "Examples\n"
+        "--------\n"
+        ">>> my_var = compute()\n"
+        ">>> print(my_var)\n"
+    )
+    target = make_target(docstring=parsed(doc_text))
+    diagnostics = D203().evaluate(target, make_context())
+    assert diagnostics == ()
+
+
+def test_d203_my_in_rst_code_block_no_fire():
+    """'my' inside an RST code-block should not fire D203."""
+    doc_text = (
+        "Compute the sum.\n\n"
+        ".. code-block:: python\n\n"
+        "    my_var = compute()\n"
+        "    print(my_var)\n"
+    )
+    target = make_target(docstring=parsed(doc_text))
+    diagnostics = D203().evaluate(target, make_context())
+    assert diagnostics == ()
+
+
+# ---------------------------------------------------------------------------
+# D202 — reST title header
+# ---------------------------------------------------------------------------
+
+
+def test_d202_rst_title_not_misidentified():
+    """A reST title header should not cause a false positive for missing blank line."""
+    doc_text = (
+        "mymodule.core\n"
+        "=============\n\n"
+        "Core utilities for the framework.\n\n"
+        "Notes\n"
+        "-----\n"
+        "Some details.\n"
+    )
+    target = make_target(docstring=parsed(doc_text))
+    diagnostics = D202().evaluate(target, make_context())
+    assert diagnostics == ()
