@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from glossa.domain.contracts import (
     CALLABLE_AND_CLASS_KINDS,
     CALLABLE_TARGET_KINDS,
@@ -20,12 +22,24 @@ from glossa.domain.rules._parameters import documentable_params
 _GROUP = "typed-entries"
 
 
-def _types_match(doc_type: str, annotation: str) -> bool:
+def _types_match(doc_type: str, annotation: str, default_text: str | None = None) -> bool:
     """Check whether a docstring type string matches a signature annotation."""
     doc = doc_type.strip()
     ann = annotation.strip()
 
+    # Strip forward-reference quotes from annotations.  These may wrap
+    # the entire string (``'Node'``) or appear internally
+    # (``Optional[Type['Saver']]``).
+    ann = ann.replace("'", "").replace('"', "")
+
     if doc == ann:
+        return True
+
+    # Normalize ``str or Path`` to ``str | Path``.
+    doc_piped = re.sub(r"\bor\b", "|", doc)
+    doc_piped = re.sub(r"\s*\|\s*", " | ", doc_piped).strip()
+    ann_piped = re.sub(r"\s*\|\s*", " | ", ann).strip()
+    if doc_piped == ann_piped:
         return True
 
     def _normalize_optional(t: str) -> str:
@@ -34,20 +48,27 @@ def _types_match(doc_type: str, annotation: str) -> bool:
             return f"{inner} | None"
         return t
 
-    doc_norm = _normalize_optional(doc)
-    ann_norm = _normalize_optional(ann)
+    doc_norm = _normalize_optional(doc_piped)
+    ann_norm = _normalize_optional(ann_piped)
 
     if doc_norm == ann_norm:
         return True
 
-    if doc.endswith(", optional"):
-        base = doc[: -len(", optional")].strip()
-        base_norm = _normalize_optional(base)
+    # Handle ``, optional`` suffix: either still embedded in doc_type
+    # (legacy) or split into the separate *default_text* field.
+    is_optional = doc.endswith(", optional") or (
+        default_text is not None and default_text.strip().lower() == "optional"
+    )
+    if is_optional:
+        base = doc[: -len(", optional")].strip() if doc.endswith(", optional") else doc
+        base_piped = re.sub(r"\bor\b", "|", base)
+        base_piped = re.sub(r"\s*\|\s*", " | ", base_piped).strip()
+        base_norm = _normalize_optional(base_piped)
         if base_norm == ann_norm:
             return True
-        if ann_norm in (f"{base_norm} | None", f"{base} | None"):
+        if ann_norm in (f"{base_norm} | None", f"{base_piped} | None"):
             return True
-        if base == ann:
+        if base_piped == ann_piped:
             return True
 
     return False
@@ -128,7 +149,7 @@ def _check_mismatched_types(
     for entry, annotation in entries_with_annotation:
         if entry.type_text is None:
             continue
-        if _types_match(entry.type_text, annotation):
+        if _types_match(entry.type_text, annotation, default_text=entry.default_text):
             continue
         if entry.name is not None:
             desc = f"Replace type '{entry.type_text}' with '{annotation}' for parameter '{entry.name}'"
@@ -165,7 +186,9 @@ def _param_entries_with_annotation(target: LintTarget) -> list[tuple[TypedEntry,
     for entry in params_section.entries:
         if entry.name is None:
             continue
-        sig_param = sig_params.get(entry.name)
+        # Strip leading ``*``/``**`` so ``**kwargs`` matches the bare name.
+        bare_name = entry.name.lstrip("*")
+        sig_param = sig_params.get(bare_name)
         if sig_param is None or sig_param.annotation is None:
             continue
         result.append((entry, sig_param.annotation))

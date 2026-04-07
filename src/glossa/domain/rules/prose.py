@@ -256,7 +256,7 @@ def _filter_code_lines(lines: tuple[str, ...]) -> str:
     return "\n".join(result)
 
 
-_FIRST_PERSON_RE = re.compile(r"\b(I|my|me|we|our|us)\b")
+_FIRST_PERSON_RE = re.compile(r"\b(I(?!/)|my|me|we|our|us)\b")
 
 
 class FirstPersonVoice:

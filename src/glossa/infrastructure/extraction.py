@@ -450,6 +450,16 @@ def _is_property(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return False
 
 
+def _is_overload(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Return True when the function is an ``@overload`` stub."""
+    for dec in node.decorator_list:
+        if isinstance(dec, ast.Name) and dec.id == "overload":
+            return True
+        if isinstance(dec, ast.Attribute) and dec.attr == "overload":
+            return True
+    return False
+
+
 def _target_suppression_lines(
     node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
     source_lines: list[str],
@@ -537,6 +547,8 @@ class ASTExtractor:
                     self._extract_class(source_id, source_lines, node, parent_path=())
                 )
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if _is_overload(node):
+                    continue
                 targets.append(
                     self._extract_function(
                         source_id,
@@ -602,6 +614,8 @@ class ASTExtractor:
         # Methods and nested classes
         for stmt in node.body:
             if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if _is_overload(stmt):
+                    continue
                 targets.append(
                     self._extract_function(
                         source_id,
@@ -646,6 +660,17 @@ class ASTExtractor:
         exceptions = _extract_exceptions(node)
         warnings = _extract_warnings(node)
         decorators = _decorator_names(node)
+
+        # ``raise NotImplementedError`` inside an ``@abstractmethod`` is an
+        # implementation idiom, not a public exception contract.
+        if "abstractmethod" in decorators:
+            exceptions = tuple(
+                e for e in exceptions
+                if not (
+                    e.evidence is ExceptionEvidence.RAISE
+                    and e.type_name == "NotImplementedError"
+                )
+            )
 
         related = RelatedTargets(parent=parent_ref)
 

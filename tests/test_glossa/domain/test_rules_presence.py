@@ -289,9 +289,9 @@ def test_missing_parameters_section_no_params_no_fire():
 
 
 def test_missing_parameters_section_self_excluded():
-    """'self' is excluded from documentable params."""
+    """'self' is excluded from documentable params for methods."""
     target = make_target(
-        kind=TargetKind.FUNCTION,
+        kind=TargetKind.METHOD,
         docstring=parsed("Do something."),
         signature=_make_sig_with_params("self"),
     )

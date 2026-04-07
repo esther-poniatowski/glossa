@@ -37,14 +37,18 @@ _GROUP = "structure"
 
 
 def _docstring_param_names(target: LintTarget) -> frozenset[str]:
-    """Return parameter names listed in the Parameters section of *target*."""
+    """Return parameter names listed in the Parameters section of *target*.
+
+    Leading ``*`` / ``**`` prefixes are stripped so that docstring names like
+    ``**kwargs`` match the bare ``kwargs`` stored in signature facts.
+    """
     if target.docstring is None:
         return frozenset()
     params_section = target.docstring.typed_section(TypedSectionKind.PARAMETERS)
     if params_section is None:
         return frozenset()
     return frozenset(
-        entry.name
+        entry.name.lstrip("*")
         for entry in params_section.entries
         if entry.name is not None
     )

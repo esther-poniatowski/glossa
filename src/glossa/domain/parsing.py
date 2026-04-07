@@ -77,13 +77,31 @@ _DEPRECATED_RE = re.compile(
     r"^\.\.\s+deprecated::\s*(?P<version>\S+)?\s*$", re.IGNORECASE
 )
 
-# Pattern for typed entry headers: ``name : type`` or ``name : type, default value``
-_TYPED_ENTRY_RE = re.compile(
-    r"^(?P<name>\*{0,2}\w+)(?:\s*:\s*(?P<type>[^,]+?)(?:\s*,\s*(?P<default>.+))?)?\s*$"
-)
+# Pattern for typed entry header name: ``name`` or ``*name`` or ``**name``
+_ENTRY_NAME_RE = re.compile(r"^(?P<name>\*{0,2}\w+)\s*$")
 
-# Pattern for return/yield entries (no name): ``type``
-_UNNAMED_ENTRY_RE = re.compile(r"^(?P<type>[^,]+?)(?:\s*,\s*(?P<default>.+))?\s*$")
+# Pattern for entry name followed by colon and type: ``name : type[, default]``
+_NAMED_HEADER_RE = re.compile(r"^(?P<name>\*{0,2}\w+)\s*:\s*(?P<rest>.+)$")
+
+# Pattern for comma-separated parameter names: ``*args, **kwargs``
+_MULTI_NAME_RE = re.compile(r"^(\*{0,2}\w+)(\s*,\s*\*{0,2}\w+)+\s*$")
+
+
+def _split_type_default(text: str) -> tuple[str, str | None]:
+    """Split a type string into type and optional default, respecting brackets.
+
+    Commas inside balanced brackets (``[]``, ``()``, ``{}``) are not treated
+    as separators.  Only the first top-level comma is used as the split point.
+    """
+    depth = 0
+    for i, ch in enumerate(text):
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth = max(depth - 1, 0)
+        elif ch == "," and depth == 0:
+            return text[:i].strip(), text[i + 1 :].strip()
+    return text.strip(), None
 
 # ---------------------------------------------------------------------------
 # Section parse function type
@@ -254,26 +272,35 @@ def _parse_typed_entries(
         default_text: str | None = None
 
         if uses_names:
-            m = _TYPED_ENTRY_RE.match(header)
+            m = _NAMED_HEADER_RE.match(header)
             if m:
                 name = m.group("name")
-                type_text = m.group("type")
-                if type_text:
-                    type_text = type_text.strip()
-                default_text = m.group("default")
-                if default_text:
-                    default_text = default_text.strip()
+                type_text, default_text = _split_type_default(m.group("rest"))
+            elif _ENTRY_NAME_RE.match(header):
+                name = header.strip()
+            elif _MULTI_NAME_RE.match(header):
+                # Comma-separated names like ``*args, **kwargs``.
+                # Emit one entry per name, sharing the description.
+                abs_start = body_start_idx + block_start
+                abs_end = abs_start + len(block_lines)
+                span = _span_of_lines(all_lines, abs_start, abs_end)
+                for part in header.split(","):
+                    part_name = part.strip()
+                    if part_name:
+                        entries.append(
+                            TypedEntry(
+                                name=part_name,
+                                type_text=None,
+                                default_text=None,
+                                description_lines=desc_lines,
+                                span=span,
+                            )
+                        )
+                continue
             else:
                 name = header.split(":")[0].strip() if ":" in header else header.strip()
         else:
-            m = _UNNAMED_ENTRY_RE.match(header)
-            if m:
-                type_text = m.group("type")
-                if type_text:
-                    type_text = type_text.strip()
-                default_text = m.group("default")
-                if default_text:
-                    default_text = default_text.strip()
+            type_text, default_text = _split_type_default(header)
 
         abs_start = body_start_idx + block_start
         abs_end = abs_start + len(block_lines)
