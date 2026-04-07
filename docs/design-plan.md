@@ -383,7 +383,7 @@ class UnknownSection:
 
 @dataclass(frozen=True)
 class ParseIssue:
-    code: str
+    kind: str
     message: str
     span: DocstringSpan | None
 
@@ -420,7 +420,7 @@ class Severity(Enum):
 
 @dataclass(frozen=True)
 class Diagnostic:
-    code: str
+    rule: str
     message: str
     severity: Severity
     target: SourceRef
@@ -468,7 +468,8 @@ preserving quote style, string prefix, indentation, and surrounding whitespace.
 ```python
 @dataclass(frozen=True)
 class RuleMetadata:
-    code: str
+    name: str
+    group: str
     description: str
     default_severity: Severity
     applies_to: frozenset[TargetKind]
@@ -476,8 +477,8 @@ class RuleMetadata:
 
 @dataclass(frozen=True)
 class RuleContext:
-    policy: "ResolvedRulePolicy"
-    style: Literal["numpy"]
+    policy: RulePolicy
+    section_order: tuple[str, ...] = ()
 
 class Rule(Protocol):
     metadata: RuleMetadata
@@ -533,70 +534,68 @@ facts on `LintTarget`.
 
 ### 6.5 Rule Catalog
 
-#### Presence and Coverage (D1xx)
+#### Presence and Coverage (`presence`)
 
-| Code | Description | Applies To | Inputs | Fixable |
-| ---- | ----------- | ---------- | ------ | ------- |
-| D100 | Missing public module docstring | module | visibility, docstring | No |
-| D101 | Missing public class docstring | class | visibility, docstring | No |
-| D102 | Missing public callable docstring | function, method, property | visibility, policy, docstring | No |
-| D103 | Missing `Parameters` section for documentable parameters | function, method, class | signature, docstring, related constructor | Yes |
-| D104 | Missing `Returns` section where required | function, method, property | signature, docstring, property policy | Yes |
-| D105 | Missing `Yields` section for generators | function, method, property | signature, docstring | Yes |
-| D106 | Missing `Raises` section for public-contract exceptions | function, method, property | exceptions, docstring, policy | No |
-| D107 | Missing `Warns` section for public warnings | function, method, property | warnings, docstring, policy | No |
-| D108 | Missing module `Classes` / `Functions` inventory when required | module | module_symbols, docstring, policy | Yes |
-| D109 | Missing `Attributes` section where class attributes require documentation | class | attributes, docstring, policy | No |
-| D110 | Constructor parameters documented in `__init__` instead of class docstring | class | related constructor, class docstring | No |
-| D111 | Missing deprecation directive for deprecated public API | module, class, function, method, property | decorators, warnings, docstring, policy | No |
+| Rule | Description | Applies To | Fixable |
+| ---- | ----------- | ---------- | ------- |
+| missing-module-docstring | Missing public module docstring | module | No |
+| missing-class-docstring | Missing public class docstring | class | No |
+| missing-callable-docstring | Missing public callable docstring | function, method, property | No |
+| missing-parameters-section | Missing Parameters section for documentable parameters | function, method, class | Yes |
+| missing-returns-section | Missing Returns section where required | function, method, property | Yes |
+| missing-yields-section | Missing Yields section for generators | function, method, property | Yes |
+| missing-raises-section | Missing Raises section for public-contract exceptions | function, method, property | No |
+| missing-warns-section | Missing Warns section for public warnings | function, method, property | No |
+| missing-module-inventory | Missing module Classes/Functions inventory when required | module | Yes |
+| missing-attributes-section | Missing Attributes section where class attributes need docs | class | No |
+| params-in-init-not-class | Constructor parameters documented in __init__ instead of class | class | No |
+| missing-deprecation-directive | Missing deprecation directive for deprecated public API | all | No |
 
-#### Prose and Summary Format (D2xx)
+#### Prose and Summary Format (`prose`)
 
-| Code | Description | Applies To | Inputs | Fixable |
-| ---- | ----------- | ---------- | ------ | ------- |
-| D200 | Summary line is not imperative where imperative voice is required | module, class, function, method | docstring | No |
-| D201 | Summary line missing terminal period | module, class, function, method, property | docstring | Yes |
-| D202 | Missing blank line after summary when body follows | module, class, function, method, property | docstring | Yes |
-| D203 | First-person voice in docstring | module, class, function, method, property | docstring | No |
-| D204 | Second-person voice in docstring | module, class, function, method, property | docstring | No |
-| D205 | Markdown syntax where RST is required | module, class, function, method, property | docstring | No |
+| Rule | Description | Applies To | Fixable |
+| ---- | ----------- | ---------- | ------- |
+| non-imperative-summary | Summary not imperative where required | function, method, property | No |
+| missing-period | Summary line missing terminal period | all | Yes |
+| missing-blank-after-summary | Missing blank line after summary when body follows | all | Yes |
+| first-person-voice | First-person voice in docstring | all | No |
+| second-person-voice | Second-person voice in docstring | all | No |
+| markdown-in-docstring | Markdown syntax where RST is required | all | No |
 
-`D200` does **not** apply to simple data-like property docstrings. Short declarative
-property summaries are explicitly allowed by the guide.
+`non-imperative-summary` applies only to callables (function, method, property), not
+to modules or classes.
 
-#### Section Structure and Placement (D3xx)
+#### Section Structure and Placement (`structure`)
 
-| Code | Description | Applies To | Inputs | Fixable |
-| ---- | ----------- | ---------- | ------ | ------- |
-| D300 | Section underline is malformed | module, class, function, method, property | docstring | Yes |
-| D301 | Section order violates NumPy policy | module, class, function, method, property | docstring | No |
-| D302 | Undocumented parameter present in signature | function, method, class | signature, docstring, related constructor | Yes |
-| D303 | Extraneous parameter appears in docstring | function, method, class | signature, docstring, related constructor | No |
-| D304 | Deprecation directive is malformed or misplaced | module, class, function, method, property | docstring | No |
-| D305 | RST directive used where a NumPy section exists | module, class, function, method, property | docstring | No |
-| D306 | `Examples` appears in a non-entry-point module docstring | module | docstring, policy | No |
+| Rule | Description | Applies To | Fixable |
+| ---- | ----------- | ---------- | ------- |
+| malformed-underline | Section underline is malformed | all | Yes |
+| section-order | Section order violates NumPy policy | all | No |
+| undocumented-parameter | Parameter in signature but missing from docstring | function, method, class | Yes |
+| extraneous-parameter | Parameter in docstring but not in signature | function, method, class | No |
+| malformed-deprecation | Deprecation directive malformed or misplaced | all | No |
+| rst-directive-instead-of-section | RST directive used where NumPy section exists | all | No |
+| examples-in-non-entry-module | Examples in non-entry-point module (suppressed by default) | module | No |
 
-`D305` explicitly exempts `.. deprecated::`.
+#### Typed Entry Consistency (`typed-entries`)
 
-#### Typed Entry Consistency (D4xx)
+| Rule | Description | Applies To | Fixable |
+| ---- | ----------- | ---------- | ------- |
+| missing-param-type | Parameter type missing from docstring | function, method, class | Yes |
+| param-type-mismatch | Parameter type mismatches annotation | function, method, class | Yes |
+| missing-return-type | Return type missing from docstring | function, method, property | Yes |
+| return-type-mismatch | Return type mismatches annotation | function, method, property | Yes |
+| yield-type-mismatch | Yield type missing or mismatched | function, method, property | Yes |
+| missing-attribute-type | Attribute type missing | class | Yes |
 
-| Code | Description | Applies To | Inputs | Fixable |
-| ---- | ----------- | ---------- | ------ | ------- |
-| D400 | Parameter type missing from docstring | function, method, class | signature, docstring, related constructor | Yes |
-| D401 | Parameter type mismatches annotation | function, method, class | signature, docstring, related constructor | Yes |
-| D402 | Return type missing from docstring | function, method, property | signature, docstring | Yes |
-| D403 | Return type mismatches annotation | function, method, property | signature, docstring | Yes |
-| D404 | Yield type missing or mismatched | function, method, property | signature, docstring | Yes |
-| D405 | Attribute type missing where `Attributes` entry exists | class | attributes, docstring | Yes |
+#### Anti-Patterns (`anti-patterns`)
 
-#### Anti-Patterns (D5xx)
-
-| Code | Description | Applies To | Inputs | Fixable |
-| ---- | ----------- | ---------- | ------ | ------- |
-| D500 | Empty docstring body | module, class, function, method, property | docstring | No |
-| D501 | Trivial dunder method docstring | method | docstring, policy | No |
-| D502 | Redundant `Returns None` section | function, method, property | signature, docstring | Yes |
-| D503 | Prose uses a NumPy-replaceable warning/note directive rather than a section | module, class, function, method, property | docstring | No |
+| Rule | Description | Applies To | Fixable |
+| ---- | ----------- | ---------- | ------- |
+| empty-docstring | Empty docstring body | all | No |
+| trivial-dunder-docstring | Trivial dunder method docstring | method | No |
+| redundant-returns-none | Redundant Returns None section | function, method, property | Yes |
+| rst-note-warning-directive | RST note/warning directive instead of NumPy section | all | No |
 
 ## 7. Configuration
 
@@ -613,6 +612,11 @@ class RuleSelection:
     severity_overrides: Mapping[str, Severity]
     per_file_ignores: Mapping[str, tuple[str, ...]]
     rule_options: Mapping[str, Mapping[str, object]]
+    section_order: tuple[str, ...]
+
+@dataclass(frozen=True)
+class ParsingOptions:
+    section_aliases: Mapping[str, str]
 
 @dataclass(frozen=True)
 class SuppressionPolicy:
@@ -630,6 +634,14 @@ class OutputOptions:
     format: Literal["text", "json"]
     color: bool
     show_source: bool
+
+@dataclass(frozen=True)
+class GlossaConfig:
+    rules: RuleSelection
+    suppressions: SuppressionPolicy
+    fix: FixPolicy
+    output: OutputOptions
+    parsing: ParsingOptions
 ```
 
 The resolved application config combines:
@@ -645,13 +657,13 @@ The resolved application config combines:
 Guide phrases such as "non-trivial", "when useful", and "top-level API entry point"
 must not be left implicit. They are resolved through named policy options such as:
 
-- `D102.include_test_functions`
-- `D102.include_private_helpers`
-- `D104.simple_property_requires_returns`
-- `D106.contract_exception_allowlist`
-- `D108.inventory_threshold`
-- `D306.api_entry_modules`
-- `D501.trivial_dunder_allowlist`
+- `missing-callable-docstring.include_test_functions`
+- `missing-callable-docstring.include_private_helpers`
+- `missing-returns-section.simple_property_requires_returns`
+- `missing-raises-section.contract_exception_allowlist`
+- `missing-module-inventory.inventory_threshold`
+- `examples-in-non-entry-module.api_entry_modules`
+- `trivial-dunder-docstring.trivial_dunder_allowlist`
 
 ### 7.3 Configuration Schema
 
@@ -659,19 +671,19 @@ must not be left implicit. They are resolved through named policy options such a
 
 ```toml
 [tool.glossa.rules]
-select = ["D1xx", "D2xx", "D3xx", "D4xx", "D5xx"]
-ignore = ["D205"]
+select = ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
+ignore = ["markdown-in-docstring"]
 
 [tool.glossa.rules.severity_overrides]
-D201 = "error"
+missing-period = "error"
 
 [tool.glossa.rules.per_file_ignores]
-"tests/**.py" = ["D102"]
+"tests/**.py" = ["missing-callable-docstring"]
 
-[tool.glossa.rules.rule_options.D104]
+[tool.glossa.rules.rule_options.missing-returns-section]
 simple_property_requires_returns = false
 
-[tool.glossa.rules.rule_options.D108]
+[tool.glossa.rules.rule_options.missing-module-inventory]
 inventory_threshold = 2
 
 [tool.glossa.suppressions]
@@ -687,22 +699,25 @@ validate_after_apply = true
 format = "text"
 color = true
 show_source = true
+
+[tool.glossa.parsing.section_aliases]
+Hint = "Notes"
 ```
 
 `.glossa.yaml`:
 
 ```yaml
 rules:
-  select: ["D1xx", "D2xx", "D3xx", "D4xx", "D5xx"]
-  ignore: ["D205"]
+  select: ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
+  ignore: ["markdown-in-docstring"]
   severity_overrides:
-    D201: error
+    missing-period: error
   per_file_ignores:
-    "tests/**.py": ["D102"]
+    "tests/**.py": ["missing-callable-docstring"]
   rule_options:
-    D104:
+    missing-returns-section:
       simple_property_requires_returns: false
-    D108:
+    missing-module-inventory:
       inventory_threshold: 2
 
 suppressions:
@@ -718,6 +733,10 @@ output:
   format: text
   color: true
   show_source: true
+
+parsing:
+  section_aliases:
+    Hint: Notes
 ```
 
 ### 7.4 Inline Suppression
@@ -726,7 +745,7 @@ Glossa supports single-line suppression directives attached to a target definiti
 module header:
 
 ```python
-def render(config: Config) -> str:  # glossa: ignore=D200,D205
+def render(config: Config) -> str:  # glossa: ignore=non-imperative-summary,markdown-in-docstring
     """Returns the rendered text"""
 ```
 
@@ -813,8 +832,8 @@ Testing follows the layer boundaries and directly targets the risky rules.
 - parser unit tests over raw docstring strings
 - lossless round-trip tests for quote style, indentation, and section ordering
 - rule tests over pure `LintTarget` fixtures with no I/O
-- heuristic corpus tests for D200 imperative mood detection
-- confidence-threshold tests for D106 and D107 fact handling
+- heuristic corpus tests for non-imperative-summary mood detection
+- confidence-threshold tests for missing-raises-section and missing-warns-section fact handling
 
 ### 11.2 Application Tests
 
@@ -863,36 +882,36 @@ Every guide convention must trace either to concrete rules or to explicit non-go
 
 | Guide Clause | Status | Coverage |
 | ------------ | ------ | -------- |
-| 1.1 NumPy style required | Enforced | D300, D301, D305, D503 |
-| 1.2 Imperative mood and impersonal voice | Enforced | D200, D203, D204 |
-| 1.3 Types in `Parameters` / `Returns` / `Yields` / `Attributes` | Enforced | D400-D405 |
-| 1.4 Public modules/classes/functions require docstrings | Enforced | D100-D102 |
-| 1.4 Constructor params documented on class, not `__init__` | Enforced | D103, D110 |
-| 1.4 Private helpers / tests / special methods policy | Enforced via config | D102, D501 rule options |
-| 1.4 Trivial property accessor optional | Enforced via config | D102 and D104 rule options |
-| 2.2 Module inventory sections for large public modules | Enforced | D108 |
+| 1.1 NumPy style required | Enforced | malformed-underline, section-order, rst-directive-instead-of-section, rst-note-warning-directive |
+| 1.2 Imperative mood and impersonal voice | Enforced | non-imperative-summary, first-person-voice, second-person-voice |
+| 1.3 Types in `Parameters` / `Returns` / `Yields` / `Attributes` | Enforced | missing-param-type, param-type-mismatch, missing-return-type, return-type-mismatch, yield-type-mismatch, missing-attribute-type |
+| 1.4 Public modules/classes/functions require docstrings | Enforced | missing-module-docstring, missing-class-docstring, missing-callable-docstring |
+| 1.4 Constructor params documented on class, not `__init__` | Enforced | missing-parameters-section, params-in-init-not-class |
+| 1.4 Private helpers / tests / special methods policy | Enforced via config | missing-callable-docstring, trivial-dunder-docstring rule options |
+| 1.4 Trivial property accessor optional | Enforced via config | missing-callable-docstring and missing-returns-section rule options |
+| 2.2 Module inventory sections for large public modules | Enforced | missing-module-inventory |
 | 2.2 Module `See Also` when useful | Out of scope | editorial judgment |
-| 2.2 No `Examples` in non-entry-point modules | Enforced | D306 |
-| 3.2 `Attributes` for public attributes needing docs | Enforced | D109, D405 |
+| 2.2 No `Examples` in non-entry-point modules | Enforced | examples-in-non-entry-module (suppressed by default) |
+| 3.2 `Attributes` for public attributes needing docs | Enforced | missing-attributes-section, missing-attribute-type |
 | 3.2 Class `Examples` when useful | Out of scope | editorial judgment |
-| 4.2 Function summary period and blank line | Enforced | D201, D202 |
-| 4.2 `Parameters` required when parameters exist | Enforced | D103, D302, D303 |
-| 4.2 `Returns` required when returning a value | Enforced | D104, D402, D403, D502 |
-| 4.2 `Raises` for public-contract exceptions | Enforced conservatively | D106 with confidence threshold |
+| 4.2 Function summary period and blank line | Enforced | missing-period, missing-blank-after-summary |
+| 4.2 `Parameters` required when parameters exist | Enforced | missing-parameters-section, undocumented-parameter, extraneous-parameter |
+| 4.2 `Returns` required when returning a value | Enforced | missing-returns-section, missing-return-type, return-type-mismatch, redundant-returns-none |
+| 4.2 `Raises` for public-contract exceptions | Enforced conservatively | missing-raises-section with confidence threshold |
 | 4.2 `See Also` when useful | Out of scope | editorial judgment |
 | 4.2 `Examples` when useful | Out of scope | editorial judgment |
 | 4.2 `Notes` used sparingly | Out of scope | editorial judgment |
-| 4.2 Deprecation directive placement | Enforced | D111, D304 |
-| 4.2 `Warns` for runtime warnings | Enforced conservatively | D107 |
-| 4.2 `Warnings` prose section | Enforced structurally | D305, D503 |
-| 5.2 Simple properties may be declarative and omit `Returns` | Enforced | D200 exempt; D104 controlled by property policy |
+| 4.2 Deprecation directive placement | Enforced | missing-deprecation-directive, malformed-deprecation |
+| 4.2 `Warns` for runtime warnings | Enforced conservatively | missing-warns-section |
+| 4.2 `Warnings` prose section | Enforced structurally | rst-directive-instead-of-section, rst-note-warning-directive |
+| 5.2 Simple properties may be declarative and omit `Returns` | Enforced | non-imperative-summary exempt; missing-returns-section controlled by property policy |
 | 6 Inline comment guidance | Out of scope | non-docstring analysis |
-| 7 Empty docstrings | Enforced | D500 |
-| 7 Trivial dunder docstrings | Enforced | D501 |
-| 7 RST directives vs NumPy sections | Enforced | D305, D503 |
-| 7 Markdown in docstrings | Enforced | D205 |
-| 7 First-person voice | Enforced | D203 |
-| 7 Redundant `Returns None` | Enforced | D502 |
+| 7 Empty docstrings | Enforced | empty-docstring |
+| 7 Trivial dunder docstrings | Enforced | trivial-dunder-docstring |
+| 7 RST directives vs NumPy sections | Enforced | rst-directive-instead-of-section, rst-note-warning-directive |
+| 7 Markdown in docstrings | Enforced | markdown-in-docstring |
+| 7 First-person voice | Enforced | first-person-voice |
+| 7 Redundant `Returns None` | Enforced | redundant-returns-none |
 
 ## 13. Extensibility
 
@@ -928,13 +947,13 @@ Not promised in v1:
 
 ### Phase 2 - Core Lint Rules
 
-- implement D100-D205 and D300-D303
+- implement presence, prose, and structure rules
 - implement policy resolution, per-file overrides, and inline suppressions
 - build fixture corpus for properties, constructors, and generators
 
 ### Phase 3 - Typed Rules and Safe Fix Engine
 
-- implement D104-D111 and D400-D405
+- implement remaining presence rules, typed-entries, and anti-patterns
 - implement conflict detection and validation-backed fix application
 - add `fix` and `check` CLI commands
 

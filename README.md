@@ -60,6 +60,9 @@ fills this gap with a rule set designed specifically around numpydoc conventions
 - [x] **Section validation**: Check section headers, ordering, and entry formatting.
 - [x] **Configurable rules**: Enable, disable, or change the severity of individual
   rules via `pyproject.toml` or `.glossa.yaml`.
+- [x] **Descriptive rule names**: Rules are identified by readable names (e.g.
+  `missing-period`, `undocumented-parameter`) and organized into groups
+  (`presence`, `prose`, `structure`, `typed-entries`, `anti-patterns`).
 - [x] **CI-friendly**: The `check` command exits non-zero on violations; JSON output
   supports machine consumption.
 
@@ -83,6 +86,16 @@ CI mode (non-zero exit on violations):
 
 ```sh
 glossa check src/
+```
+
+Select specific rule groups:
+
+```sh
+# Select specific rule groups:
+glossa lint src/ --select presence,prose
+
+# Ignore specific rules:
+glossa lint src/ --ignore missing-period,first-person-voice
 ```
 
 ---

@@ -19,8 +19,8 @@ glossa lint src/ tests/
 Restrict the analysis to specific rule groups or exclude individual rules:
 
 ```sh
-glossa lint src/ --select D1xx,D4xx
-glossa lint src/ --ignore D200
+glossa lint src/ --select presence,typed-entries
+glossa lint src/ --ignore non-imperative-summary
 ```
 
 JSON output supports machine consumption and CI integration:
@@ -54,16 +54,16 @@ glossa check src/
 
 ## Python API
 
-The same functionality works programmatically through `create_linter`:
+The same functionality works programmatically through `bootstrap`:
 
 ```python
-from glossa.adapters.bootstrap import create_linter
+from glossa.adapters.bootstrap import bootstrap
 
-service = create_linter()
+service = bootstrap()
 result = service.lint_paths(["src/"])
 
 for d in result.diagnostics:
-    print(f"{d.target.source_id} {d.code} {d.message}")
+    print(f"{d.target.source_id} {d.rule} {d.message}")
 ```
 
 Single-string input bypasses file discovery:

@@ -19,16 +19,16 @@ Lint Python files and report diagnostics.
 
 ```sh
 glossa lint src/
-glossa lint src/ tests/ --select D1xx,D4xx
-glossa lint src/ --ignore D205 --format json
+glossa lint src/ tests/ --select presence,typed-entries
+glossa lint src/ --ignore markdown-in-docstring --format json
 glossa lint src/ --no-color
 ```
 
 | Option | Description | Default |
 | ------ | ----------- | ------- |
 | `--config`, `-c` PATH | Path to configuration file. | Auto-detected |
-| `--select CODES` | Enable only the specified rules (codes or groups like `D1xx`). | All |
-| `--ignore CODES` | Disable the specified rules. | None |
+| `--select RULES` | Rule names or groups to enable. | All |
+| `--ignore RULES` | Rule names or groups to disable. | None |
 | `--format`, `-f` `text\|json` | Output format. | `text` |
 | `--no-color` | Disable colored output. | Off |
 

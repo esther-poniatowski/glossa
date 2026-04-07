@@ -15,35 +15,39 @@ them from lowest to highest precedence:
 
 ```toml
 [tool.glossa.rules]
-select = ["D1xx", "D2xx", "D3xx", "D4xx", "D5xx"]
-ignore = ["D205"]
+select = ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
+ignore = ["markdown-in-docstring"]
 section_order = [
     "Parameters", "Returns", "Yields", "Raises", "Warns",
-    "Attributes", "Notes", "Warnings", "See Also", "Examples",
+    "Attributes", "Usage", "Notes", "Warnings", "See Also", "Examples",
     "Classes", "Functions",
 ]
 
 [tool.glossa.rules.severity_overrides]
-D201 = "error"
+missing-period = "error"
 
 [tool.glossa.rules.per_file_ignores]
-"tests/**.py" = ["D102"]
+"tests/**.py" = ["missing-callable-docstring"]
 
-[tool.glossa.rules.rule_options.D102]
+[tool.glossa.rules.rule_options.missing-callable-docstring]
 include_test_functions = false
 include_private_helpers = false
 
-[tool.glossa.rules.rule_options.D104]
+[tool.glossa.rules.rule_options.missing-returns-section]
 simple_property_requires_returns = false
 
-[tool.glossa.rules.rule_options.D108]
+[tool.glossa.rules.rule_options.missing-module-inventory]
 inventory_threshold = 2
 
-[tool.glossa.rules.rule_options.D306]
+[tool.glossa.rules.rule_options.examples-in-non-entry-module]
 api_entry_modules = ["src/mypackage/api.py"]
 
-[tool.glossa.rules.rule_options.D501]
+[tool.glossa.rules.rule_options.trivial-dunder-docstring]
 trivial_dunder_allowlist = ["__repr__", "__str__"]
+
+[tool.glossa.parsing.section_aliases]
+Hint = "Notes"
+"Return Value" = "Returns"
 
 [tool.glossa.suppressions]
 inline_enabled = true
@@ -64,8 +68,8 @@ show_source = true
 
 ```yaml
 rules:
-  select: ["D1xx", "D2xx", "D3xx", "D4xx", "D5xx"]
-  ignore: ["D205"]
+  select: ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
+  ignore: ["markdown-in-docstring"]
   section_order:
     - Parameters
     - Returns
@@ -73,6 +77,7 @@ rules:
     - Raises
     - Warns
     - Attributes
+    - Usage
     - Notes
     - Warnings
     - See Also
@@ -80,21 +85,26 @@ rules:
     - Classes
     - Functions
   severity_overrides:
-    D201: error
+    missing-period: error
   per_file_ignores:
-    "tests/**.py": ["D102"]
+    "tests/**.py": ["missing-callable-docstring"]
   rule_options:
-    D102:
+    missing-callable-docstring:
       include_test_functions: false
       include_private_helpers: false
-    D104:
+    missing-returns-section:
       simple_property_requires_returns: false
-    D108:
+    missing-module-inventory:
       inventory_threshold: 2
-    D306:
+    examples-in-non-entry-module:
       api_entry_modules: ["src/mypackage/api.py"]
-    D501:
+    trivial-dunder-docstring:
       trivial_dunder_allowlist: ["__repr__", "__str__"]
+
+parsing:
+  section_aliases:
+    Hint: Notes
+    "Return Value": Returns
 
 suppressions:
   inline_enabled: true
@@ -115,12 +125,13 @@ output:
 
 | Option | Description | Default |
 | ------ | ----------- | ------- |
-| `rules.select` | Rule codes or groups to enable. | All (`D1xx`--`D5xx`) |
-| `rules.ignore` | Rule codes to disable. | None |
+| `rules.select` | Rule names or groups to enable. | All (`presence`, `prose`, `structure`, `typed-entries`, `anti-patterns`) |
+| `rules.ignore` | Rule names or groups to disable. | None |
 | `rules.section_order` | Canonical ordering of NumPy docstring sections. | See default list above |
-| `rules.severity_overrides` | Map rule codes to `"convention"`, `"warning"`, or `"error"`. | None |
+| `rules.severity_overrides` | Map rule names to `"convention"`, `"warning"`, or `"error"`. | None |
 | `rules.per_file_ignores` | Disable specific rules for matching file globs. | None |
 | `rules.rule_options` | Per-rule settings that resolve ambiguous guide policies. | None |
+| `parsing.section_aliases` | Map non-standard section headings to canonical names. | None |
 | `suppressions.inline_enabled` | Enable inline `glossa: ignore=` directives. | `true` |
 | `suppressions.directive_prefix` | Prefix string for inline suppression comments. | `"glossa: ignore="` |
 | `fix.enabled` | Enable or disable the fix pipeline globally. | `true` |
@@ -132,22 +143,22 @@ output:
 
 ## Rule Options
 
-Some rules accept per-rule options under `rules.rule_options.<CODE>`.
+Some rules accept per-rule options under `rules.rule_options.<rule-name>`.
 
 | Rule | Option | Type | Default | Description |
 | ---- | ------ | ---- | ------- | ----------- |
-| D102 | `include_test_functions` | bool | `false` | Require docstrings on test functions (`test_*`). |
-| D102 | `include_private_helpers` | bool | `false` | Require docstrings on private (`_`-prefixed) callables. |
-| D104 | `simple_property_requires_returns` | bool | `true` | Require a Returns section on simple properties. |
-| D108 | `inventory_threshold` | int | `2` | Minimum public symbols before a Classes/Functions inventory section is required. |
-| D306 | `api_entry_modules` | list[str] | `[]` | File globs identifying API entry-point modules where Examples sections are expected. |
-| D501 | `trivial_dunder_allowlist` | list[str] | `[]` | Dunder method names exempt from the trivial-docstring check. |
+| missing-callable-docstring | `include_test_functions` | bool | `false` | Require docstrings on test functions (`test_*`). |
+| missing-callable-docstring | `include_private_helpers` | bool | `false` | Require docstrings on private (`_`-prefixed) callables. |
+| missing-returns-section | `simple_property_requires_returns` | bool | `true` | Require a Returns section on simple properties. |
+| missing-module-inventory | `inventory_threshold` | int | `2` | Minimum public symbols before a Classes/Functions inventory section is required. |
+| examples-in-non-entry-module | `api_entry_modules` | list[str] | `[]` | File globs identifying API entry-point modules where Examples sections are expected. |
+| trivial-dunder-docstring | `trivial_dunder_allowlist` | list[str] | `[]` | Dunder method names exempt from the trivial-docstring check. |
 
 ## Inline Suppressions
 
 Inline suppressions attach to a module header or target definition:
 
 ```python
-def render(config: Config) -> str:  # glossa: ignore=D200,D205
+def render(config: Config) -> str:  # glossa: ignore=non-imperative-summary,markdown-in-docstring
     """Returns the rendered text"""
 ```
