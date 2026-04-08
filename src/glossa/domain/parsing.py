@@ -300,7 +300,14 @@ def _parse_typed_entries(
             else:
                 name = header.split(":")[0].strip() if ":" in header else header.strip()
         else:
-            type_text, default_text = _split_type_default(header)
+            # Returns/Yields: NumPy convention allows ``name : type`` or
+            # just ``type`` as the header line.
+            m = _NAMED_HEADER_RE.match(header)
+            if m:
+                name = m.group("name")
+                type_text, default_text = _split_type_default(m.group("rest"))
+            else:
+                type_text, default_text = _split_type_default(header)
 
         abs_start = body_start_idx + block_start
         abs_end = abs_start + len(block_lines)

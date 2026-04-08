@@ -25,7 +25,7 @@ from glossa.domain.models import (
 )
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._options import validate_string_tuple
-from glossa.domain.rules._parameters import documentable_param_names
+from glossa.domain.rules._parameters import documentable_param_names, init_params_on_class
 from glossa.domain.rules._scanning import scan_rst_directives
 
 _GROUP = "structure"
@@ -188,6 +188,9 @@ class UndocumentedParameter:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if init_params_on_class(target):
+            return ()
+
         sig_names = documentable_param_names(target)
         doc_names = _docstring_param_names(target)
         missing = sig_names - doc_names

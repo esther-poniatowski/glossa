@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from glossa.domain.contracts import LintTarget, ParameterFact, TargetKind
+from glossa.domain.models import TypedSectionKind
 
 
 def _excluded_names(target: LintTarget) -> frozenset[str]:
@@ -76,3 +77,20 @@ def _constructor_param_names(target: LintTarget) -> frozenset[str]:
         p.name for p in constructor.signature.parameters
         if p.name != "self"
     )
+
+
+def init_params_on_class(target: LintTarget) -> bool:
+    """Check if this is ``__init__`` whose params are documented on the class.
+
+    Returns ``True`` when the target is an ``__init__`` method and the parent
+    class docstring already contains a Parameters section, so per-parameter
+    rules should be suppressed on the constructor itself.
+    """
+    if target.kind is not TargetKind.METHOD:
+        return False
+    if not target.ref.symbol_path or target.ref.symbol_path[-1] != "__init__":
+        return False
+    parent = target.related.parent
+    if parent is None or parent.docstring is None:
+        return False
+    return parent.docstring.has_typed_section(TypedSectionKind.PARAMETERS)

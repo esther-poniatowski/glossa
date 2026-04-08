@@ -48,8 +48,27 @@ def _types_match(doc_type: str, annotation: str, default_text: str | None = None
             return f"{inner} | None"
         return t
 
-    doc_norm = _normalize_optional(doc_piped)
-    ann_norm = _normalize_optional(ann_piped)
+    def _normalize_union(t: str) -> str:
+        if t.startswith("Union[") and t.endswith("]"):
+            inner = t[len("Union["):-1]
+            # Split on top-level commas, respecting bracket nesting.
+            parts: list[str] = []
+            depth = 0
+            start = 0
+            for i, ch in enumerate(inner):
+                if ch in "([{":
+                    depth += 1
+                elif ch in ")]}":
+                    depth = max(depth - 1, 0)
+                elif ch == "," and depth == 0:
+                    parts.append(inner[start:i].strip())
+                    start = i + 1
+            parts.append(inner[start:].strip())
+            return " | ".join(parts)
+        return t
+
+    doc_norm = _normalize_union(_normalize_optional(doc_piped))
+    ann_norm = _normalize_union(_normalize_optional(ann_piped))
 
     if doc_norm == ann_norm:
         return True
@@ -69,6 +88,14 @@ def _types_match(doc_type: str, annotation: str, default_text: str | None = None
         if ann_norm in (f"{base_norm} | None", f"{base_piped} | None"):
             return True
         if base_piped == ann_piped:
+            return True
+
+    # Accept docstring type that matches the non-None part of an Optional
+    # annotation.  NumPy convention often documents only the base type when
+    # a parameter has a ``None`` default.
+    if ann_norm.endswith(" | None"):
+        ann_base = ann_norm[: -len(" | None")].strip()
+        if doc_norm == ann_base:
             return True
 
     return False
@@ -195,6 +222,35 @@ def _param_entries_with_annotation(target: LintTarget) -> list[tuple[TypedEntry,
     return result if result else None
 
 
+_GENERATOR_RE = re.compile(
+    r"^(?:collections\.abc\.)?"
+    r"(?:Async)?(?:Generator|Iterator)\[(.+)\]$"
+)
+
+
+def _extract_yield_type(annotation: str) -> str:
+    """Extract the yield type from Generator/Iterator annotations.
+
+    ``Generator[YieldType, SendType, ReturnType]`` → ``YieldType``
+    ``Iterator[YieldType]`` → ``YieldType``
+    ``AsyncGenerator[YieldType, SendType]`` → ``YieldType``
+    """
+    m = _GENERATOR_RE.match(annotation.strip())
+    if m is None:
+        return annotation
+    inner = m.group(1)
+    # Extract the first type argument, respecting bracket nesting.
+    depth = 0
+    for i, ch in enumerate(inner):
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth = max(depth - 1, 0)
+        elif ch == "," and depth == 0:
+            return inner[:i].strip()
+    return inner.strip()
+
+
 def _section_entries_with_annotation(
     target: LintTarget,
     section_kind: TypedSectionKind,
@@ -210,6 +266,8 @@ def _section_entries_with_annotation(
         return None
 
     annotation = target.signature.return_annotation
+    if section_kind == TypedSectionKind.YIELDS:
+        annotation = _extract_yield_type(annotation)
     return [(entry, annotation) for entry in section.entries]
 
 

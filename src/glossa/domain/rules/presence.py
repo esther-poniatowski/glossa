@@ -22,7 +22,7 @@ from glossa.domain.contracts import (
 from glossa.domain.models import InventorySectionKind, TypedSectionKind
 from glossa.domain.rules import Rule, RuleContext, RuleMetadata, make_diagnostic
 from glossa.domain.rules._options import validate_bool, validate_positive_int
-from glossa.domain.rules._parameters import documentable_param_names
+from glossa.domain.rules._parameters import documentable_param_names, init_params_on_class
 
 _GROUP = "presence"
 
@@ -246,6 +246,9 @@ class MissingParametersSection:
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
         if not documentable_param_names(target):
+            return ()
+
+        if init_params_on_class(target):
             return ()
 
         if target.docstring is None or not target.docstring.has_typed_section(TypedSectionKind.PARAMETERS):
