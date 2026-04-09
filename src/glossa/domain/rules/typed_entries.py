@@ -22,10 +22,25 @@ from glossa.domain.rules._parameters import documentable_params
 _GROUP = "typed-entries"
 
 
-def _types_match(doc_type: str, annotation: str, default_text: str | None = None) -> bool:
+def _types_match(
+    doc_type: str,
+    annotation: str,
+    default_text: str | None = None,
+    *,
+    class_name: str | None = None,
+) -> bool:
     """Check whether a docstring type string matches a signature annotation."""
     doc = doc_type.strip()
     ann = annotation.strip()
+
+    # Normalise ``Self`` to the enclosing class name so that, e.g.,
+    # ``-> Self`` matches a docstring ``Returns DataComponent``, and
+    # ``Self`` in both positions also matches.
+    if class_name is not None:
+        if ann == "Self":
+            ann = class_name
+        if doc == "Self":
+            doc = class_name
 
     # Strip forward-reference quotes from annotations.  These may wrap
     # the entire string (``'Node'``) or appear internally
@@ -162,6 +177,16 @@ def _check_missing_types(
     return tuple(diagnostics)
 
 
+def _enclosing_class_name(target: LintTarget) -> str | None:
+    """Return the enclosing class name for a method or class target."""
+    path = target.ref.symbol_path
+    if target.kind is TargetKind.CLASS:
+        return path[-1] if path else None
+    if target.kind in (TargetKind.METHOD, TargetKind.PROPERTY) and len(path) >= 2:
+        return path[-2]
+    return None
+
+
 def _check_mismatched_types(
     rule,
     target: LintTarget,
@@ -172,11 +197,12 @@ def _check_mismatched_types(
 ) -> tuple[Diagnostic, ...]:
     """Check for entries whose type does not match the annotation."""
     diagnostics: list[Diagnostic] = []
+    class_name = _enclosing_class_name(target)
 
     for entry, annotation in entries_with_annotation:
         if entry.type_text is None:
             continue
-        if _types_match(entry.type_text, annotation, default_text=entry.default_text):
+        if _types_match(entry.type_text, annotation, default_text=entry.default_text, class_name=class_name):
             continue
         if entry.name is not None:
             desc = f"Replace type '{entry.type_text}' with '{annotation}' for parameter '{entry.name}'"

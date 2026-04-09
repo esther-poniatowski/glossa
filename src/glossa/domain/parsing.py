@@ -86,6 +86,11 @@ _NAMED_HEADER_RE = re.compile(r"^(?P<name>\*{0,2}\w+)\s*:\s*(?P<rest>.+)$")
 # Pattern for comma-separated parameter names: ``*args, **kwargs``
 _MULTI_NAME_RE = re.compile(r"^(\*{0,2}\w+)(\s*,\s*\*{0,2}\w+)+\s*$")
 
+# Pattern for comma-separated names with a type: ``axis1, axis2 : int``
+_MULTI_NAME_TYPED_RE = re.compile(
+    r"^(?P<names>(?:\*{0,2}\w+)(?:\s*,\s*\*{0,2}\w+)+)\s*:\s*(?P<rest>.+)$"
+)
+
 
 def _split_type_default(text: str) -> tuple[str, str | None]:
     """Split a type string into type and optional default, respecting brackets.
@@ -278,6 +283,25 @@ def _parse_typed_entries(
                 type_text, default_text = _split_type_default(m.group("rest"))
             elif _ENTRY_NAME_RE.match(header):
                 name = header.strip()
+            elif (m_typed := _MULTI_NAME_TYPED_RE.match(header)):
+                # Comma-separated names with shared type: ``axis1, axis2 : int``.
+                abs_start = body_start_idx + block_start
+                abs_end = abs_start + len(block_lines)
+                span = _span_of_lines(all_lines, abs_start, abs_end)
+                shared_type, shared_default = _split_type_default(m_typed.group("rest"))
+                for part in m_typed.group("names").split(","):
+                    part_name = part.strip()
+                    if part_name:
+                        entries.append(
+                            TypedEntry(
+                                name=part_name,
+                                type_text=shared_type,
+                                default_text=shared_default,
+                                description_lines=desc_lines,
+                                span=span,
+                            )
+                        )
+                continue
             elif _MULTI_NAME_RE.match(header):
                 # Comma-separated names like ``*args, **kwargs``.
                 # Emit one entry per name, sharing the description.

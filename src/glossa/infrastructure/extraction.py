@@ -580,18 +580,24 @@ class ASTExtractor:
         docstring = _extract_docstring(node, source_lines)
         decorators = _decorator_names(node)
 
-        # Find constructor ref (if __init__ exists)
+        # Find constructor ref (__init__ preferred, __new__ as fallback)
         constructor_ref: SourceRef | None = None
+        new_ref: SourceRef | None = None
         for stmt in node.body:
-            if (
-                isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef))
-                and stmt.name == "__init__"
-            ):
-                constructor_ref = SourceRef(
-                    source_id=source_id,
-                    symbol_path=class_path + ("__init__",),
-                )
-                break
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if stmt.name == "__init__":
+                    constructor_ref = SourceRef(
+                        source_id=source_id,
+                        symbol_path=class_path + ("__init__",),
+                    )
+                    break
+                if stmt.name == "__new__" and new_ref is None:
+                    new_ref = SourceRef(
+                        source_id=source_id,
+                        symbol_path=class_path + ("__new__",),
+                    )
+        if constructor_ref is None:
+            constructor_ref = new_ref
 
         targets.append(
             ExtractedTarget(
