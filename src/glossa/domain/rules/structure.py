@@ -191,6 +191,14 @@ class UndocumentedParameter:
         if init_params_on_class(target):
             return ()
 
+        # When no Parameters section exists at all, missing-parameters-section
+        # already covers it — avoid redundant per-parameter diagnostics.
+        if (
+            target.docstring is None
+            or target.docstring.typed_section(TypedSectionKind.PARAMETERS) is None
+        ):
+            return ()
+
         sig_names = documentable_param_names(target)
         doc_names = _docstring_param_names(target)
         missing = sig_names - doc_names
