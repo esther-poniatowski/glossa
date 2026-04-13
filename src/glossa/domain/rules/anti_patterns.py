@@ -13,10 +13,11 @@ from glossa.domain.contracts import (
     RuleOptionDescriptor,
     Severity,
     TargetKind,
+    Visibility,
 )
 from glossa.domain.models import TypedSectionKind
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
-from glossa.domain.rules._options import validate_string_tuple
+from glossa.domain.rules._options import validate_bool, validate_string_tuple
 from glossa.domain.rules._scanning import scan_rst_directives
 
 _GROUP = "anti-patterns"
@@ -96,11 +97,20 @@ class TrivialDunderDocstring:
         applies_to=frozenset({TargetKind.METHOD}),
         fixable=False,
         option_schema=(
-            RuleOptionDescriptor("trivial_dunder_allowlist", (), validate_string_tuple),
+            RuleOptionDescriptor(
+                "trivial_dunder_allowlist",
+                ("__init__", "__new__", "__post_init__", "__init_subclass__", "__class_getitem__"),
+                validate_string_tuple,
+            ),
+            RuleOptionDescriptor("include_non_public_helpers", False, validate_bool),
         ),
     )
 
     def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
+        include_non_public = context.policy.options["include_non_public_helpers"]
+        if not include_non_public and target.visibility is not Visibility.PUBLIC:
+            return ()
+
         method_name = target.ref.symbol_path[-1] if target.ref.symbol_path else ""
 
         if not (method_name.startswith("__") and method_name.endswith("__")):

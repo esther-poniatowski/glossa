@@ -146,14 +146,17 @@ def test_empty_docstring_nonempty_no_fire():
 
 
 def test_trivial_dunder_docstring_init_fires():
-    """Dunder __init__ with boilerplate summary fires."""
+    """Dunder __init__ with boilerplate summary fires when allowlist is overridden."""
     rule = TrivialDunderDocstring()
     target = make_target(
         kind=TargetKind.METHOD,
         docstring=parsed("Initialize self."),
         symbol_path=("MyClass", "__init__"),
     )
-    diagnostics = rule.evaluate(target, make_context(rule=rule))
+    diagnostics = rule.evaluate(
+        target,
+        make_context({"trivial_dunder_allowlist": ()}, rule=rule),
+    )
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "trivial-dunder-docstring"
 

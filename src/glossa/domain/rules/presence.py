@@ -25,6 +25,19 @@ from glossa.domain.rules._options import validate_bool, validate_positive_int
 from glossa.domain.rules._parameters import documentable_param_names, init_params_on_class
 
 _GROUP = "presence"
+_NON_PUBLIC_HELPERS_OPTION = "include_non_public_helpers"
+_INCLUDE_TEST_FUNCTIONS_OPTION = "include_test_functions"
+
+_NON_PUBLIC_AND_TEST_OPTION_SCHEMA: tuple[RuleOptionDescriptor, ...] = (
+    RuleOptionDescriptor(_INCLUDE_TEST_FUNCTIONS_OPTION, False, validate_bool),
+    RuleOptionDescriptor(_NON_PUBLIC_HELPERS_OPTION, False, validate_bool),
+)
+
+
+def _is_dataclass_decorator(decorator: str) -> bool:
+    """Return True when *decorator* denotes ``dataclass``."""
+    head = decorator.split("(", 1)[0].strip()
+    return head == "dataclass" or head.endswith(".dataclass")
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +105,16 @@ def _make_missing_section_rule(
         def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
             if target.docstring is None or target.signature is None:
                 return ()
+            if (
+                target.is_test_target
+                and not context.policy.options.get(_INCLUDE_TEST_FUNCTIONS_OPTION, False)
+            ):
+                return ()
+            if (
+                target.visibility is not Visibility.PUBLIC
+                and not context.policy.options.get(_NON_PUBLIC_HELPERS_OPTION, False)
+            ):
+                return ()
             if not signature_predicate(target.signature):
                 return ()
 
@@ -117,6 +140,7 @@ def _make_missing_fact_section_rule(
     section_kind: TypedSectionKind,
     confidence_filter: Confidence = Confidence.HIGH,
     exclude_evidence: ExceptionEvidence | None = None,
+    option_schema: tuple[RuleOptionDescriptor, ...] = (),
 ) -> type[Rule]:
     """Factory: fire if high-confidence facts exist but section is missing."""
 
@@ -128,10 +152,21 @@ def _make_missing_fact_section_rule(
             default_severity=Severity.WARNING,
             applies_to=CALLABLE_TARGET_KINDS,
             fixable=False,
+            option_schema=option_schema,
         )
 
         def evaluate(self, target: LintTarget, context: RuleContext) -> tuple[Diagnostic, ...]:
             if target.docstring is None:
+                return ()
+            if (
+                target.is_test_target
+                and not context.policy.options.get(_INCLUDE_TEST_FUNCTIONS_OPTION, False)
+            ):
+                return ()
+            if (
+                target.visibility is not Visibility.PUBLIC
+                and not context.policy.options.get(_NON_PUBLIC_HELPERS_OPTION, False)
+            ):
                 return ()
             facts = fact_accessor(target)
             relevant = [
@@ -215,7 +250,7 @@ class MissingCallableDocstring:
             return ()
 
         include_private = context.policy.options["include_private_helpers"]
-        if not include_private and target.visibility is Visibility.PRIVATE:
+        if not include_private and target.visibility is not Visibility.PUBLIC:
             return ()
 
         if target.visibility is Visibility.PUBLIC:
@@ -238,6 +273,7 @@ class MissingParametersSection:
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.FUNCTION, TargetKind.METHOD, TargetKind.CLASS}),
         fixable=True,
+        option_schema=_NON_PUBLIC_AND_TEST_OPTION_SCHEMA,
     )
 
     def evaluate(
@@ -245,6 +281,17 @@ class MissingParametersSection:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if (
+            target.is_test_target
+            and not context.policy.options.get(_INCLUDE_TEST_FUNCTIONS_OPTION, False)
+        ):
+            return ()
+        if (
+            target.visibility is not Visibility.PUBLIC
+            and not context.policy.options.get(_NON_PUBLIC_HELPERS_OPTION, False)
+        ):
+            return ()
+
         if not documentable_param_names(target):
             return ()
 
@@ -275,6 +322,7 @@ MissingReturnsSection = _make_missing_section_rule(
     option_key="simple_property_requires_returns",
     option_schema=(
         RuleOptionDescriptor("simple_property_requires_returns", True, validate_bool),
+        *_NON_PUBLIC_AND_TEST_OPTION_SCHEMA,
     ),
 )
 
@@ -290,6 +338,7 @@ MissingYieldsSection = _make_missing_section_rule(
     section_kind=TypedSectionKind.YIELDS,
     signature_predicate=lambda s: s.yields_value,
     applies_to=CALLABLE_TARGET_KINDS,
+    option_schema=_NON_PUBLIC_AND_TEST_OPTION_SCHEMA,
 )
 
 
@@ -305,6 +354,7 @@ MissingRaisesSection = _make_missing_fact_section_rule(
     section_kind=TypedSectionKind.RAISES,
     confidence_filter=Confidence.HIGH,
     exclude_evidence=ExceptionEvidence.RERAISE,
+    option_schema=_NON_PUBLIC_AND_TEST_OPTION_SCHEMA,
 )
 
 
@@ -319,6 +369,7 @@ MissingWarnsSection = _make_missing_fact_section_rule(
     fact_accessor=lambda t: t.warnings,
     section_kind=TypedSectionKind.WARNS,
     confidence_filter=Confidence.HIGH,
+    option_schema=_NON_PUBLIC_AND_TEST_OPTION_SCHEMA,
 )
 
 
@@ -338,7 +389,7 @@ class MissingModuleInventory:
         applies_to=frozenset({TargetKind.MODULE}),
         fixable=True,
         option_schema=(
-            RuleOptionDescriptor("inventory_threshold", 2, validate_positive_int),
+            RuleOptionDescriptor("inventory_threshold", 3, validate_positive_int),
         ),
     )
 
@@ -404,6 +455,11 @@ class MissingAttributesSection:
         default_severity=Severity.WARNING,
         applies_to=frozenset({TargetKind.CLASS}),
         fixable=False,
+        option_schema=(
+            RuleOptionDescriptor(_INCLUDE_TEST_FUNCTIONS_OPTION, False, validate_bool),
+            RuleOptionDescriptor(_NON_PUBLIC_HELPERS_OPTION, False, validate_bool),
+            RuleOptionDescriptor("dataclass_requires_attributes", False, validate_bool),
+        ),
     )
 
     def evaluate(
@@ -411,6 +467,21 @@ class MissingAttributesSection:
         target: LintTarget,
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
+        if (
+            target.is_test_target
+            and not context.policy.options[_INCLUDE_TEST_FUNCTIONS_OPTION]
+        ):
+            return ()
+        if (
+            target.visibility is not Visibility.PUBLIC
+            and not context.policy.options[_NON_PUBLIC_HELPERS_OPTION]
+        ):
+            return ()
+        if (
+            not context.policy.options["dataclass_requires_attributes"]
+            and any(_is_dataclass_decorator(dec) for dec in target.decorators)
+        ):
+            return ()
 
         public_attrs = [a for a in target.attributes if a.is_public]
         if not public_attrs:

@@ -473,7 +473,7 @@ def test_missing_module_inventory_fires():
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
-        module_symbols=_make_symbols(n_classes=2, n_functions=2),
+        module_symbols=_make_symbols(n_classes=3, n_functions=3),
     )
     diagnostics = rule.evaluate(target, make_context(rule=rule))
     rules = [d.rule for d in diagnostics]
@@ -486,7 +486,7 @@ def test_missing_module_inventory_below_threshold_no_fire():
     target = make_target(
         kind=TargetKind.MODULE,
         docstring=parsed("A module."),
-        module_symbols=_make_symbols(n_classes=1, n_functions=1),
+        module_symbols=_make_symbols(n_classes=2, n_functions=2),
     )
     diagnostics = rule.evaluate(target, make_context(rule=rule))
     assert diagnostics == ()

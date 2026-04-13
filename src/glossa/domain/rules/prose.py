@@ -12,9 +12,13 @@ from glossa.domain.contracts import (
     EditKind,
     FixPlan,
     LintTarget,
+    RuleOptionDescriptor,
     Severity,
+    TargetKind,
+    Visibility,
 )
 from glossa.domain.rules import RuleContext, RuleMetadata, make_diagnostic
+from glossa.domain.rules._options import validate_bool
 
 _GROUP = "prose"
 
@@ -61,6 +65,11 @@ class NonImperativeSummary:
         default_severity=Severity.CONVENTION,
         applies_to=CALLABLE_TARGET_KINDS,
         fixable=False,
+        option_schema=(
+            RuleOptionDescriptor("include_test_functions", False, validate_bool),
+            RuleOptionDescriptor("include_non_public_helpers", False, validate_bool),
+            RuleOptionDescriptor("property_requires_imperative_summary", False, validate_bool),
+        ),
     )
 
     def evaluate(
@@ -69,6 +78,21 @@ class NonImperativeSummary:
         context: RuleContext,
     ) -> tuple[Diagnostic, ...]:
         if target.docstring is None:
+            return ()
+        if (
+            target.is_test_target
+            and not context.policy.options["include_test_functions"]
+        ):
+            return ()
+        if (
+            target.visibility is not Visibility.PUBLIC
+            and not context.policy.options["include_non_public_helpers"]
+        ):
+            return ()
+        if (
+            target.kind is TargetKind.PROPERTY
+            and not context.policy.options["property_requires_imperative_summary"]
+        ):
             return ()
         summary = target.docstring.summary
         if summary is None:
