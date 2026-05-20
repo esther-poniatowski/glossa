@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Read(//Users/eresther/Documents/work/techne/tutorials/programming/examples/**)",
-      "Bash(wc -l /Users/eresther/Documents/work/projects/glossa/src/glossa/**/*.py)"
+      "Bash(wc:*)"
     ]
   }
 }
