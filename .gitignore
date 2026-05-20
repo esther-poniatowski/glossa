@@ -34,3 +34,6 @@ htmlcov/
 
 ## Documentation Build
 docs/_build/
+
+## Claude Code skill-generated backups
+.claude/*.bak.*
