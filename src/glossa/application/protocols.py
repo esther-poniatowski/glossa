@@ -3,21 +3,6 @@
 Each protocol in this module represents a dependency boundary: the application
 layer declares *what* it needs; infrastructure layers provide conforming
 implementations without the application importing them directly.
-
-Protocols
----------
-DiscoveryPort
-    Discovers Python source files within a set of paths.
-ExtractionPort
-    Extracts lintable targets from a Python source file.
-FilePort
-    Reads and writes source file content.
-ConfigPort
-    Loads raw configuration data from pyproject.toml or .glossa.yaml.
-PluginPort
-    Discovers and loads third-party rule providers via entry points.
-RuleProvider
-    Supplies a set of lint rules (used by PluginPort).
 """
 
 from __future__ import annotations
