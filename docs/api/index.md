@@ -1,22 +1,42 @@
+<a id="api-reference"></a>
+
 # API Reference
 
-## Package Overview
-
-```{eval-rst}
-.. automodule:: glossa
-   :members:
-   :undoc-members:
-```
-
-## Modules
-
-<!--
-Add one automodule directive per public module. Example:
-
-```{eval-rst}
-.. automodule:: glossa.core
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
--->
+* [Top-Level](top-level.md)
+  * [Diagnostics](top-level.md#diagnostics)
+* [Errors](errors.md)
+  * [Exception hierarchy](errors.md#module-glossa.errors)
+* [Domain Contracts](domain-contracts.md)
+  * [Core](domain-contracts.md#module-glossa.domain.contracts.core)
+  * [Extraction](domain-contracts.md#module-glossa.domain.contracts.extraction)
+  * [Evaluation](domain-contracts.md#module-glossa.domain.contracts.evaluation)
+* [Domain Models](domain-models.md)
+  * [Models](domain-models.md#module-glossa.domain.models)
+  * [Parsing](domain-models.md#module-glossa.domain.parsing)
+  * [Fixes](domain-models.md#module-glossa.domain.fixes)
+  * [Traceability](domain-models.md#module-glossa.domain.traceability)
+* [Domain Rules](domain-rules.md)
+  * [Rule base](domain-rules.md#module-glossa.domain.rules)
+  * [Presence rules](domain-rules.md#module-glossa.domain.rules.presence)
+  * [Prose rules](domain-rules.md#module-glossa.domain.rules.prose)
+  * [Structure rules](domain-rules.md#module-glossa.domain.rules.structure)
+  * [Typed-entry rules](domain-rules.md#module-glossa.domain.rules.typed_entries)
+  * [Anti-pattern rules](domain-rules.md#module-glossa.domain.rules.anti_patterns)
+* [Application](application.md)
+  * [Protocols](application.md#module-glossa.application.protocols)
+  * [Service](application.md#module-glossa.application.service)
+  * [Linting](application.md#module-glossa.application.linting)
+  * [Fixing](application.md#module-glossa.application.fixing)
+  * [Configuration](application.md#module-glossa.application.configuration)
+  * [Policy](application.md#module-glossa.application.policy)
+  * [Registry](application.md#module-glossa.application.registry)
+* [Infrastructure](infrastructure.md)
+  * [Configuration](infrastructure.md#module-glossa.infrastructure.config)
+  * [Discovery](infrastructure.md#module-glossa.infrastructure.discovery)
+  * [Extraction](infrastructure.md#module-glossa.infrastructure.extraction)
+  * [Files](infrastructure.md#module-glossa.infrastructure.files)
+  * [Plugins](infrastructure.md#module-glossa.infrastructure.plugins)
+* [Adapters](adapters.md)
+  * [Bootstrap](adapters.md#module-glossa.adapters.bootstrap)
+  * [CLI](adapters.md#module-glossa.adapters.cli)
+  * [Formatters](adapters.md#module-glossa.adapters.formatters)

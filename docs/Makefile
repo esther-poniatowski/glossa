@@ -1,14 +1,31 @@
-# Minimal Makefile for Sphinx documentation
+# Makefile for Glossa documentation
+#
+# Sphinx is restricted to the API documentation tree. Prose documentation
+# (index.md, guide/, internals/, adr/) is hand-written Markdown and not
+# part of the Sphinx build.
+#
+# Source root: _src/       (API entry points: index.md + automodule stubs)
+# Output:      api/        (generated Markdown, committed to git)
+# Cache:       _build/     (gitignored)
 
-SPHINXOPTS    ?=
-SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = .
-BUILDDIR      = _build
+SPHINXBUILD := sphinx-build
+SOURCEDIR   := _src
+APIDIR      := api
+BUILDDIR    := _build
+
+.PHONY: help api html clean
 
 help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@echo "Targets:"
+	@echo "  api    Generate Markdown API docs into $(APIDIR)/"
+	@echo "  html   Generate HTML preview into $(BUILDDIR)/html/"
+	@echo "  clean  Remove generated API docs and build cache"
 
-.PHONY: help Makefile
+api:
+	$(SPHINXBUILD) -b markdown -d $(BUILDDIR)/doctrees $(SOURCEDIR) $(APIDIR)
 
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+html:
+	$(SPHINXBUILD) -b html -d $(BUILDDIR)/doctrees $(SOURCEDIR) $(BUILDDIR)/html
+
+clean:
+	rm -rf $(APIDIR)/*.md $(BUILDDIR)

@@ -2,31 +2,26 @@
 
 Lints and fixes Python docstrings to follow NumPy-style conventions.
 
-```{toctree}
-:maxdepth: 2
-:caption: User Guide
+## User Guide
 
-guide/installation
-guide/usage
-guide/cli-reference
-guide/configuration
-guide/rules
-guide/docstring-guide
-```
+- [Installation](guide/installation.md)
+- [Usage](guide/usage.md)
+- [CLI Reference](guide/cli-reference.md)
+- [Configuration](guide/configuration.md)
+- [Rule Reference](guide/rules.md)
+- [Docstring Guide](guide/docstring-guide.md)
 
-```{toctree}
-:maxdepth: 2
-:caption: Developer Internals
+## API Reference
 
-architecture
-internals/index
-design-principles
-```
+- [API Reference](api/index.md)
 
-```{toctree}
-:maxdepth: 1
-:caption: Other
+## Developer Internals
 
-changelog
-contributing
-```
+- [Architecture](architecture.md)
+- [Internals](internals/index.md)
+- [Design Principles](design-principles.md)
+
+## Other
+
+- [Changelog](../CHANGELOG.md)
+- [Contributing](../CONTRIBUTING.md)
