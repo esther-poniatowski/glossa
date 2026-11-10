@@ -146,9 +146,9 @@ class FilePort(Protocol):
 class ConfigPort(Protocol):
     """Loads raw configuration data for glossa.
 
-    Implementations locate and parse ``pyproject.toml`` (``[tool.glossa]``
-    section) or ``.glossa.yaml``, returning an unvalidated dictionary that
-    the application layer can then map onto ``GlossaConfig``.
+    Implementations locate and parse the settings file ``glossa.yml`` or
+    ``glossa.toml``, returning an unvalidated dictionary that the application
+    layer can then map onto ``GlossaConfig``.
     """
 
     def load(self, config_path: str | None = None) -> dict[str, object]:
@@ -157,9 +157,9 @@ class ConfigPort(Protocol):
         Parameters
         ----------
         config_path : str | None, optional
-            Explicit path to a configuration file.  When ``None``,
-            implementations should search for ``pyproject.toml`` or
-            ``.glossa.yaml`` starting from the current working directory.
+            Explicit path to a settings file.  When ``None``, implementations
+            read ``config/tools/glossa.<ext>`` or ``glossa.<ext>`` below the
+            root of the project.
 
         Returns
         -------

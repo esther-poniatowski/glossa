@@ -18,10 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Usage` recognized as a built-in prose section, placed between Attributes and Notes in
   the default section order.
 - `Arguments` and `Args` recognized as aliases for the `Parameters` section header.
-- Configurable section aliases via `[tool.glossa.parsing.section_aliases]` to map custom
-  section titles to known kinds.
+- Configurable section aliases via `parsing.section_aliases` in the settings file to map
+  custom section titles to known kinds.
 - Support for linting external projects via absolute paths.
 - `RuleMetadata` now has `name` (descriptive identifier) and `group` (category) fields.
+- Option `--root`, `-r` of `lint` and `fix`, and environment variable `GLOSSA_ROOT`: the
+  root is resolved from the option, then the variable, then the nearest ancestor of the
+  current folder holding a settings file, then the current folder.
+- Option `--check` of `fix`: it changes no file and exits with status 1 when a fix is
+  available.
+- Option `--yes` of `fix`: `fix` rewrites source files, so it asks for a confirmation on
+  a terminal; `--yes` answers it, and without a terminal and without `--yes` the command
+  stops with status 2.
 
 ### Changed
 
@@ -42,12 +50,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CLI `--select` and `--ignore` accept rule names and group names instead of numeric
   codes.
 - Default path fallback extracted to `DEFAULT_PATHS` constant.
+- The settings file is `glossa.yml` (YAML) or `glossa.toml` (TOML), read from
+  `config/tools/` below the root or from the root itself; two existing settings files
+  are an error that names both. A TOML settings file holds its tables at the top level.
+- A path given on the command line is read from the current folder; a path or glob
+  written in the settings file is read from the root. Without a path argument, `src`
+  below the root is analyzed.
+- `fix --dry-run` exits with status 0.
+- A missing path or a file that cannot be analyzed exits with status 2 instead of 4.
 
 ### Removed
 
 - Numeric rule codes (D100, D201, etc.) — no longer recognized in any context.
 - `create_linter()` backward-compatible alias — use `bootstrap()` directly.
 - `SectionParser` class and `extra_parsers` parameter from the public parsing API.
+- Short option `-f` of `lint`: use `--format`.
+- Command `check`: use `fix --check`.
+- Settings file `.glossa.yaml`: rename it `glossa.yml`, at the root or in `config/tools/`.
+- Table `[tool.glossa]` of `pyproject.toml`: move its content to `glossa.toml`, with the
+  prefix `tool.glossa.` removed from each table name.
+- Exit status 4.
 
 ### Fixed
 
@@ -55,3 +77,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `FileDiscovery` and `LocalFilePort` failing on absolute paths outside the project
   tree.
 - Rich markup collision in `fix --dry-run` output when source paths contain brackets.
+- CLI crash, with status 1, when a path or a file could not be analyzed: the warnings
+  are now written to the standard error.

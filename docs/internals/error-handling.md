@@ -22,8 +22,8 @@ class PluginLoadError(GlossaError): ...
 
 - **Configuration and bootstrap failures** are fatal and stop the run immediately.
 - **Per-file extraction or parse failures** are non-fatal by default. Glossa records
-  an operational error for that file, continues processing other files, and returns a
-  partial-failure exit code.
+  an operational error for that file, continues processing other files, and exits with
+  status 2.
 - **Rule execution failures** are treated as bugs and surfaced as operational errors.
 - **Fix validation failures** leave the original file unchanged.
 
@@ -34,8 +34,6 @@ trigger diagnostics. Only unrecoverable parser failures become `DocstringParseEr
 
 | Exit Code | Meaning |
 | --------- | ------- |
-| `0` | Run completed successfully and found no diagnostics / no pending fixes |
-| `1` | Run completed successfully and found diagnostics / available fixes |
-| `2` | Usage or configuration error |
-| `3` | Fatal operational error before analysis could complete |
-| `4` | Partial failure: some files analyzed, some files failed operationally |
+| `0` | Run completed and found no diagnostics, no available fix with `fix --check`, or applied every fix |
+| `1` | Run completed and found diagnostics, available fixes with `fix --check`, or skipped fixes |
+| `2` | Usage or configuration error, a missing path, or a file that failed operationally |

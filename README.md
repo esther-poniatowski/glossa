@@ -59,12 +59,13 @@ fills this gap with a rule set designed specifically around numpydoc conventions
   cross-referencing function signatures.
 - [x] **Section validation**: Check section headers, ordering, and entry formatting.
 - [x] **Configurable rules**: Enable, disable, or change the severity of individual
-  rules via `pyproject.toml` or `.glossa.yaml`.
+  rules via the settings file `glossa.yml` or `glossa.toml`.
 - [x] **Descriptive rule names**: Rules are identified by readable names (e.g.
   `missing-period`, `undocumented-parameter`) and organized into groups
   (`presence`, `prose`, `structure`, `typed-entries`, `anti-patterns`).
-- [x] **CI-friendly**: The `check` command exits non-zero on violations; JSON output
-  supports machine consumption.
+- [x] **CI-friendly**: `lint` exits with status 1 on violations, and `fix --check`
+  exits with status 1 when a fix is available; JSON output supports machine
+  consumption.
 
 ---
 
@@ -82,10 +83,10 @@ Apply auto-fixes:
 glossa fix src/
 ```
 
-CI mode (non-zero exit on violations):
+CI mode (status 1 when a fix is available, without changing any file):
 
 ```sh
-glossa check src/
+glossa fix src/ --check
 ```
 
 Select specific rule groups:

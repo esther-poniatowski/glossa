@@ -1,8 +1,8 @@
 # Usage
 
-Glossa operates through a Typer-based CLI and an equivalent Python API. The three
-core commands -- `lint`, `fix`, and `check` -- cover the standard workflow from
-diagnostic reporting to automatic correction.
+Glossa operates through a Typer-based CLI and an equivalent Python API. The two
+core commands, `lint` and `fix`, cover the standard workflow from diagnostic
+reporting to automatic correction.
 
 See [CLI Reference](cli-reference.md) for all commands and options.
 See [Configuration](configuration.md) for rule selection and fix policies.
@@ -31,10 +31,12 @@ glossa lint src/ --format json
 
 ## Fix
 
-The `fix` command applies validated corrections in place:
+The `fix` command applies validated corrections in place. It asks for a
+confirmation on a terminal; `--yes` answers it, for instance in a script:
 
 ```sh
 glossa fix src/
+glossa fix src/ --yes
 ```
 
 Preview fixable issues without modifying files:
@@ -45,11 +47,13 @@ glossa fix src/ --dry-run
 
 ## CI Integration
 
-The `check` command behaves like `lint` but exits with a non-zero code when
-fixable issues exist. A typical pre-commit or CI step:
+`glossa lint` exits with status 1 when it finds a diagnostic. `glossa fix --check`
+changes no file and exits with status 1 when a fix is available. A typical
+pre-commit or CI step:
 
 ```sh
-glossa check src/
+glossa lint src/
+glossa fix src/ --check
 ```
 
 ## Python API

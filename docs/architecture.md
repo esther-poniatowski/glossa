@@ -51,7 +51,7 @@ stops at explicit DTO boundaries.
 | `discovery.py` | Walk configured paths and yield Python source files |
 | `extraction.py` | Parse Python source with `ast` and emit immutable `ExtractedTarget` DTOs |
 | `files.py` | Read source files and write edited output |
-| `config.py` | Load raw configuration data from `pyproject.toml` and `.glossa.yaml` |
+| `config.py` | Resolve the root and load raw configuration data from `glossa.yml` or `glossa.toml` |
 | `plugins.py` | Load third-party rule providers from entry points |
 
 ## Adapters (`glossa/adapters/`)
@@ -99,8 +99,8 @@ For the full design rationale, see the
 | ---------- | ------- |
 | `ast` (stdlib) | Python syntax parsing in infrastructure extraction |
 | `pathlib` (stdlib) | File handling inside infrastructure and adapters only |
-| `tomllib` (stdlib 3.11+) | `pyproject.toml` parsing |
-| `pyyaml` | `.glossa.yaml` parsing |
+| `tomllib` (stdlib 3.11+) | `glossa.toml` parsing |
+| `pyyaml` | `glossa.yml` parsing |
 | `typer` | CLI adapter |
 | `rich` | Text formatter adapter |
 | `importlib.metadata` (stdlib) | Plugin entry point discovery |

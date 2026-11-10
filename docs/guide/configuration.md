@@ -6,65 +6,22 @@ Glossa resolves configuration from multiple sources. The following list orders
 them from lowest to highest precedence:
 
 1. Built-in defaults
-2. `pyproject.toml` or `.glossa.yaml`
+2. The settings file `glossa.yml` or `glossa.toml`
 3. Per-file overrides
 4. Inline suppressions
 5. CLI flags
 
-## `pyproject.toml`
+## Settings File
 
-```toml
-[tool.glossa.rules]
-select = ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
-ignore = ["markdown-in-docstring"]
-section_order = [
-    "Parameters", "Returns", "Yields", "Raises", "Warns",
-    "Attributes", "Usage", "Notes", "Warnings", "See Also", "Examples",
-    "Classes", "Functions",
-]
+The settings file is named `glossa.yml` in YAML or `glossa.toml` in TOML. Without
+`--config`, glossa reads it from `config/tools/` below the root of the project,
+or from the root itself; the [CLI Reference](cli-reference.md#root-and-settings-file)
+states how the root is resolved. When several settings files exist, glossa stops
+with an error that names them. The paths and globs written in the settings file,
+such as the keys of `rules.per_file_ignores` and the values of `api_entry_modules`,
+are read from the root.
 
-[tool.glossa.rules.severity_overrides]
-missing-period = "error"
-
-[tool.glossa.rules.per_file_ignores]
-"tests/**.py" = ["missing-callable-docstring"]
-
-[tool.glossa.rules.rule_options.missing-callable-docstring]
-include_test_functions = false
-include_private_helpers = false
-
-[tool.glossa.rules.rule_options.missing-returns-section]
-simple_property_requires_returns = false
-
-[tool.glossa.rules.rule_options.missing-module-inventory]
-inventory_threshold = 2
-
-[tool.glossa.rules.rule_options.examples-in-non-entry-module]
-api_entry_modules = ["src/mypackage/api.py"]
-
-[tool.glossa.rules.rule_options.trivial-dunder-docstring]
-trivial_dunder_allowlist = ["__repr__", "__str__"]
-
-[tool.glossa.parsing.section_aliases]
-Hint = "Notes"
-"Return Value" = "Returns"
-
-[tool.glossa.suppressions]
-inline_enabled = true
-directive_prefix = "glossa: ignore="
-
-[tool.glossa.fix]
-enabled = true
-apply = "safe"
-validate_after_apply = true
-
-[tool.glossa.output]
-format = "text"
-color = true
-show_source = true
-```
-
-## `.glossa.yaml`
+## `glossa.yml`
 
 ```yaml
 rules:
@@ -119,6 +76,61 @@ output:
   format: text
   color: true
   show_source: true
+```
+
+## `glossa.toml`
+
+The same settings in TOML, with the tables at the top level of the file:
+
+```toml
+[rules]
+select = ["presence", "prose", "structure", "typed-entries", "anti-patterns"]
+ignore = ["markdown-in-docstring"]
+section_order = [
+    "Parameters", "Returns", "Yields", "Raises", "Warns",
+    "Attributes", "Usage", "Notes", "Warnings", "See Also", "Examples",
+    "Classes", "Functions",
+]
+
+[rules.severity_overrides]
+missing-period = "error"
+
+[rules.per_file_ignores]
+"tests/**.py" = ["missing-callable-docstring"]
+
+[rules.rule_options.missing-callable-docstring]
+include_test_functions = false
+include_private_helpers = false
+
+[rules.rule_options.missing-returns-section]
+simple_property_requires_returns = false
+
+[rules.rule_options.missing-module-inventory]
+inventory_threshold = 2
+
+[rules.rule_options.examples-in-non-entry-module]
+api_entry_modules = ["src/mypackage/api.py"]
+
+[rules.rule_options.trivial-dunder-docstring]
+trivial_dunder_allowlist = ["__repr__", "__str__"]
+
+[parsing.section_aliases]
+Hint = "Notes"
+"Return Value" = "Returns"
+
+[suppressions]
+inline_enabled = true
+directive_prefix = "glossa: ignore="
+
+[fix]
+enabled = true
+apply = "safe"
+validate_after_apply = true
+
+[output]
+format = "text"
+color = true
+show_source = true
 ```
 
 ## Key Options

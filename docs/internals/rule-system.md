@@ -120,7 +120,7 @@ class GlossaConfig:
 The resolved application config combines:
 
 - built-in defaults
-- `pyproject.toml` or `.glossa.yaml`
+- the settings file `glossa.yml` or `glossa.toml`
 - per-file overrides
 - inline suppressions
 - CLI overrides
