@@ -49,16 +49,19 @@ ROOT_OPTION = typer.Option(
     "--root",
     "-r",
     help=(
-        "Folder from which glossa finds its settings file and resolves the paths written in it; "
-        "GLOSSA_ROOT, then the nearest ancestor holding a settings file, then the current folder "
-        "by default."
+        "Folder from which glossa finds its configuration file and resolves the paths written "
+        "in it; GLOSSA_ROOT, then the nearest ancestor holding a configuration file, then the "
+        "current folder by default."
     ),
 )
 CONFIG_OPTION = typer.Option(
     None,
     "--config",
     "-c",
-    help="Settings file of glossa; config/tools/glossa.yml or glossa.yml below the root by default.",
+    help=(
+        "Configuration file of glossa; config/tools/glossa.yml or glossa.yml below the root by "
+        "default."
+    ),
 )
 
 

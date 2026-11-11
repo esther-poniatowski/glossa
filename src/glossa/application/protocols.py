@@ -146,7 +146,7 @@ class FilePort(Protocol):
 class ConfigPort(Protocol):
     """Loads raw configuration data for glossa.
 
-    Implementations locate and parse the settings file ``glossa.yml`` or
+    Implementations locate and parse the configuration file ``glossa.yml`` or
     ``glossa.toml``, returning an unvalidated dictionary that the application
     layer can then map onto ``GlossaConfig``.
     """
@@ -157,7 +157,7 @@ class ConfigPort(Protocol):
         Parameters
         ----------
         config_path : str | None, optional
-            Explicit path to a settings file.  When ``None``, implementations
+            Explicit path to a configuration file.  When ``None``, implementations
             read ``config/tools/glossa.<ext>`` or ``glossa.<ext>`` below the
             root of the project.
 

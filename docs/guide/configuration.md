@@ -6,18 +6,18 @@ Glossa resolves configuration from multiple sources. The following list orders
 them from lowest to highest precedence:
 
 1. Built-in defaults
-2. The settings file `glossa.yml` or `glossa.toml`
+2. The configuration file `glossa.yml` or `glossa.toml`
 3. Per-file overrides
 4. Inline suppressions
 5. CLI flags
 
-## Settings File
+## Configuration File
 
-The settings file is named `glossa.yml` in YAML or `glossa.toml` in TOML. Without
+The configuration file is named `glossa.yml` in YAML or `glossa.toml` in TOML. Without
 `--config`, glossa reads it from `config/tools/` below the root of the project,
-or from the root itself; the [CLI Reference](cli-reference.md#root-and-settings-file)
-states how the root is resolved. When several settings files exist, glossa stops
-with an error that names them. The paths and globs written in the settings file,
+or from the root itself; the [CLI Reference](cli-reference.md#root-and-configuration-file)
+states how the root is resolved. When several configuration files exist, glossa stops
+with an error that names them. The paths and globs written in the configuration file,
 such as the keys of `rules.per_file_ignores` and the values of `api_entry_modules`,
 are read from the root.
 
@@ -80,7 +80,7 @@ output:
 
 ## `glossa.toml`
 
-The same settings in TOML, with the tables at the top level of the file:
+The same configuration in TOML, with the tables at the top level of the file:
 
 ```toml
 [rules]

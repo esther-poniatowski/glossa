@@ -17,7 +17,7 @@ FIXED = '"""Module summary."""\n\n\ndef f():\n    """Return one."""\n    return 
 
 @pytest.fixture
 def project(tmp_path, monkeypatch) -> Path:
-    """A project whose settings select one fixable rule, entered from its `src` folder."""
+    """A project whose configuration file selects one fixable rule, entered from `src`."""
     (tmp_path / "glossa.yml").write_text("rules:\n  select: [missing-period]\n", encoding="utf-8")
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "m.py").write_text(SOURCE, encoding="utf-8")

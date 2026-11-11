@@ -59,7 +59,7 @@ fills this gap with a rule set designed specifically around numpydoc conventions
   cross-referencing function signatures.
 - [x] **Section validation**: Check section headers, ordering, and entry formatting.
 - [x] **Configurable rules**: Enable, disable, or change the severity of individual
-  rules via the settings file `glossa.yml` or `glossa.toml`.
+  rules via the configuration file `glossa.yml` or `glossa.toml`.
 - [x] **Descriptive rule names**: Rules are identified by readable names (e.g.
   `missing-period`, `undocumented-parameter`) and organized into groups
   (`presence`, `prose`, `structure`, `typed-entries`, `anti-patterns`).

@@ -11,24 +11,24 @@ glossa [OPTIONS] COMMAND [ARGS]
 | `--version`, `-v` | Display the version and exit. |
 | `--help` | Display the help message and exit. |
 
-## Root and Settings File
+## Root and Configuration File
 
 The commands `lint` and `fix` resolve the root of the project in this order, and stop at the
 first answer:
 
 1. the option `--root`;
 2. the environment variable `GLOSSA_ROOT`;
-3. the nearest ancestor of the current folder that holds a settings file, in `config/tools/` or at
-   its own level;
+3. the nearest ancestor of the current folder that holds a configuration file, in `config/tools/` or
+   at its own level;
 4. the current folder.
 
-Without `--config`, the settings file is read from `config/tools/glossa.yml` or `glossa.yml` below
-the root, or from the same names with the extension `.toml`. When several of these files exist,
-the command stops with an error that names them. Without any settings file, the built-in defaults
-apply. A file named by `--config` and absent is an error.
+Without `--config`, the configuration file is read from `config/tools/glossa.yml` or `glossa.yml`
+below the root, or from the same names with the extension `.toml`. When several of these files
+exist, the command stops with an error that names them. Without any configuration file, the built-in
+defaults apply. A file named by `--config` and absent is an error.
 
 The paths given on the command line are read from the current folder. The paths written in the
-settings file, such as the globs of `rules.per_file_ignores`, are read from the root. Without a
+configuration file, such as the globs of `rules.per_file_ignores`, are read from the root. Without a
 path argument, the command analyzes `src` below the root.
 
 ## Commands
@@ -47,7 +47,7 @@ glossa lint src/ --no-color
 | Option | Description | Default |
 | ------ | ----------- | ------- |
 | `--root`, `-r` PATH | Root of the project. | Resolved as stated above |
-| `--config`, `-c` PATH | Settings file. | `config/tools/glossa.yml` or `glossa.yml` below the root |
+| `--config`, `-c` PATH | Configuration file. | `config/tools/glossa.yml` or `glossa.yml` below the root |
 | `--select RULES` | Rule names or groups to enable. | All |
 | `--ignore RULES` | Rule names or groups to disable. | None |
 | `--format` `text\|json` | Output format. | `text` |
@@ -70,7 +70,7 @@ glossa fix src/ -c custom.yml
 | Option | Description | Default |
 | ------ | ----------- | ------- |
 | `--root`, `-r` PATH | Root of the project. | Resolved as stated above |
-| `--config`, `-c` PATH | Settings file. | `config/tools/glossa.yml` or `glossa.yml` below the root |
+| `--config`, `-c` PATH | Configuration file. | `config/tools/glossa.yml` or `glossa.yml` below the root |
 | `--dry-run` | List the fixable issues without changing any file, and exit 0. | Off |
 | `--check` | List the fixable issues without changing any file, and exit 1 when one exists. | Off |
 | `--yes` | Apply the fixes without asking for a confirmation. | Off |

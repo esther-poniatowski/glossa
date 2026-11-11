@@ -1,4 +1,4 @@
-"""Tests for the root resolution and the settings file of glossa."""
+"""Tests for the root resolution and the configuration file of glossa."""
 
 from __future__ import annotations
 
